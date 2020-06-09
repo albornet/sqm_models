@@ -144,16 +144,14 @@ class Neil():
 		if set_type == 'recons':
 			choices    = ['rectangle', 'ellipse', 'vernier']
 			self.ori   = rng().uniform(0, 2*np.pi, (1, batch_s))
-			self.sizx  = rng().uniform(wn_w/20, wn_w/5, (1, batch_s))
-			self.sizy  = rng().uniform(wn_w/20, wn_w/5, (1, batch_s))
 		if set_type == 'decode':
 			choices    = ['vernier']
-			self.vside = rng().randint(0, 2,             (1, batch_s)) if objects == [] else objects[0].vside
-			self.ori   = rng().uniform(0, 0.5*np.pi,     (1, batch_s))
-			self.sizx  = rng().uniform(wn_w/20, wn_w/10, (1, batch_s))
-			self.sizy  = rng().uniform(wn_w/10, wn_w/5,  (1, batch_s))
-		self.shape = rng().choice(choices,   (1,       batch_s))
-		self.colr  = rng().randint(100, 255, (n_chans, batch_s))
+			self.vside = rng().randint(0, 2,       (1, batch_s)) if objects == [] else objects[0].vside
+			self.ori   = rng().uniform(0, np.pi/2, (1, batch_s))
+		self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.shape = rng().choice(choices,          (1,       batch_s))
+		self.colr  = rng().randint(100, 255,        (n_chans, batch_s))
 		
 		# Select random initial position, velocity and acceleration
 		x        = rng().uniform( 2*wn_w/6, 4*wn_w/6, (1, batch_s))
@@ -182,16 +180,19 @@ class Neil():
 				cc     = cc.astype(int)
 				patch[rr, cc] = 255
 			# if self.shape == 'triangle':
-			# 	rr, cc = polygon()
+			# 	rr, cc = polygon(...)
 			if self.shape[0, b] == 'vernier':
+				max_s    = int(1.5*max_s)  # faire mieux
+				patch    = np.zeros((max_s, max_s))
+				dim_w    = self.sizx[0, b]/1.5
+				dim_h    = self.sizy[0, b]*1.5
 				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b]
-				v_off_w  = rng().randint(1, self.sizx[0, b]//5)
-				v_off_h  = rng().randint(0, self.sizy[0, b]//5)
-				v_siz_w  = (self.sizx[0, b] - v_off_w)//2
-				v_siz_h  = (self.sizy[0, b] - v_off_h)//2
-				start1   = ((max_s - self.sizy[0, b])//2, (max_s - self.sizx[0, b])//2)
-				start2   = (start1[0] + (self.sizy[0, b] + v_siz_h)//2,
-                            start1[1] + (v_siz_w)//2)
+				v_siz_w  = rng().randint(1 + dim_w//10, dim_w//2)
+				v_siz_h  = rng().randint(1 + dim_h//4,  dim_h//2)
+				v_off_w  = rng().randint(1,              1 + (dim_w - v_siz_w)//2)*2
+				v_off_h  = rng().randint(1 + v_siz_h//2, 1 + (dim_h - v_siz_h)//2)*2
+				start1   = ((max_s - v_off_h - v_siz_h)//2, (max_s - v_off_w - v_siz_w)//2)
+				start2   = ((max_s + v_off_h - v_siz_h)//2, (max_s + v_off_w - v_siz_w)//2)
 				extent   = (v_siz_h, v_siz_w)
 				rr1, cc1 = rectangle(start=start1, extent=extent, shape=patch.shape)
 				rr2, cc2 = rectangle(start=start2, extent=extent, shape=patch.shape)
@@ -201,12 +202,8 @@ class Neil():
 				cc2      = cc2.astype(int)
 				patch[rr1, cc1] = 255
 				patch[rr2, cc2] = 255
-				# if vside:  # 0 is R vernier and 1 is L vernier
-				# 	patch = np.fliplr(patch)
-
-				print(int(self.sizy[0, b]), max_s, start1[0], start2[0], v_off_h, v_siz_h)
-				print(int(self.sizx[0, b]), max_s, start1[1], start2[1], v_off_w, v_siz_w)
-
+				if vside:  # 0 is R vernier and 1 is L vernier
+					patch = np.fliplr(patch)
 			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
 			
 	# Compute what must be updated between the frames
@@ -221,9 +218,6 @@ class Neil():
 			rr, cc = rectangle(start=start, extent=patch.shape, shape=wn.shape[1:3])
 			rr     = rr.astype(int)
 			cc     = cc.astype(int)
-			# rr, cc = rectangle(start=start, extent=patch.shape)
-			# rr     = np.mod(rr.astype(int), wn.shape[1])
-			# cc     = np.mod(cc.astype(int), wn.shape[2])
 			pat_rr = (rr - self.pos[1, b] - patch.shape[0]/2).astype(int)
 			pat_cc = (cc - self.pos[0, b] - patch.shape[1]/2).astype(int)
 			bckgrd = wn[b, rr, cc, :]
@@ -234,7 +228,7 @@ class Neil():
 	# Update objects position and velocity
 	def update_states(self, batch_s, friction, gravity):
 		self.vel += self.acc - self.vel*friction
-		# self.pos += self.vel
+		self.pos += self.vel
 
 
 # Class to generate batches of bouncing balls
@@ -294,7 +288,7 @@ if __name__ == '__main__':
   import os
   object_type  = 'neil'
   set_type     = 'decode'
-  n_objects    = 1
+  n_objects    = 4
   n_frames     = 20
   scale        = 2
   batch_s      = 1
