@@ -212,9 +212,8 @@ class Wrapper(tf.keras.Model):
 
   def compute_dec_loss(self, labels, decod):
     criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
-    nb_classes = labels.max() + 1
-    #targets = tf.keras.backend.zeros((labels.size(0), nb_classes)).scatter_nd(1, labels.view(-1, 1), 1)
-    targets = tf.one_hot(labels, nb_classes)
+    #targets = tf.keras.backend.zeros((labels.size(0), 2)).scatter_nd(1, labels.view(-1, 1), 1)
+    targets = tf.one_hot(labels, 2)
     losses = criterion(targets, decod)
     return losses
 
