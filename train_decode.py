@@ -2,7 +2,7 @@
 import tensorflow as tf
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # avoid printing GPU info messages
-#os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
+os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
 
 from dataset import BatchMaker
 from models import *
