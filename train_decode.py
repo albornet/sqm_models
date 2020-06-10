@@ -32,7 +32,7 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
    os.mkdir('./%s' % (wrapp.model_name,))
 
   # Training loop for the decoder part
-  batch_maker = BatchMaker('decode', 'neil', n_objs, batch_size, n_frames, im_dims)
+  batch_maker = BatchMaker('decode', 'neil', n_objs, batch_size, wrapp.n_frames, im_dims)
   for e in range(n_epochs):
     if ckpt_decoder.step % 10 == 0 and e > 0:
       mngr_decoder.save()
