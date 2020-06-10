@@ -6,7 +6,7 @@ from dataset import BatchMaker
 from models import *
 
 
-def train_recons(wrapp, obj_type, n_obj, im_dims, n_epochs, batch_size, n_batches, init_lr):
+def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr):
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
@@ -16,7 +16,7 @@ def train_recons(wrapp, obj_type, n_obj, im_dims, n_epochs, batch_size, n_batche
 
   # Checkpoint (save and load model weights)
   model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
-  ckpt_model = tf.train.Checkpoint(step=tf.Variable(0), optimizer=optim, net=model)
+  ckpt_model = tf.train.Checkpoint(step=tf.Variable(0), optimizer=optim, net=wrapp.model)
   mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
   ckpt_model.restore(mngr_model.latest_checkpoint)
   if mngr_model.latest_checkpoint:
