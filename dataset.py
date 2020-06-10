@@ -4,6 +4,7 @@ from numpy.random import RandomState as rng
 from skimage.draw import circle, ellipse, rectangle, polygon
 from skimage.transform import rotate
 
+
 # Ball class
 class Ball():
 
@@ -19,7 +20,7 @@ class Ball():
 		# Booleans initialization
 		self.tch_G = np.zeros((1, batch_s), dtype=bool)  # touches ground
 		self.tch_R = np.zeros((1, batch_s), dtype=bool)  # touches right wall
-		self.tch_L = np.zeros((1, batch_s), dtype=bool)  # touches left wall
+		self.tch_L = np.zeros((1, batch_s), dtype=bool)  # touches left  wall
 
 		# Select random initial position, velocity and acceleration
 		w        = wall_d
@@ -98,7 +99,7 @@ class Ball():
 					self.pos[:, bad ] += cT/2
 					ball.pos[:, bad ] -= cT/2
 
-					# Correct how gravity applies to balls on top (not working yet)
+					# Correct how gravity applies to balls on top
 					aT = self.acc[:, badG]
 					gT = r12[:, badG]/d[badG]        # unit vector
 					gT = np.vstack((-gT[1], gT[0]))  # perp unit vector
@@ -119,7 +120,7 @@ class Ball():
 	# Draw the ball (probably this can be done much more efficiently)
 	def draw(self, wn, batch_s):
 		for b in range(batch_s):  # (row, col) is (y, x)
-			rc, cc = circle(self.pos[1, b], self.pos[0, b], radius=self.size[0, b], shape=wn.shape[1:3])
+			rc, cc = circle(self.pos[1, b], self.pos[0, b], self.size[0, b], shape=wn.shape[1:3])
 			for i, color in enumerate(self.colr[:, b]):
 				wn[b, rc, cc, i] = color
 			# p0 = self.pos[:, b].astype(int)
@@ -148,10 +149,12 @@ class Neil():
 			choices    = ['vernier']
 			self.vside = rng().randint(0, 2,       (1, batch_s)) if objects == [] else objects[0].vside
 			self.ori   = rng().uniform(0, np.pi/2, (1, batch_s))
-		self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
-		self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
 		self.shape = rng().choice(choices,          (1,       batch_s))
 		self.colr  = rng().randint(100, 255,        (n_chans, batch_s))
+		self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.sizx[self.shape == 'vernier'] /= 1.5  # verniers look better if not too wide
+		self.sizy[self.shape == 'vernier'] *= 2.0  # verniers appear smaller than other shapes
 		
 		# Select random initial position, velocity and acceleration
 		x        = rng().uniform( 2*wn_w/6, 4*wn_w/6, (1, batch_s))
@@ -173,39 +176,29 @@ class Neil():
 				rr, cc = ellipse(center[0], center[1], radius[0], radius[1], shape=patch.shape)
 				patch[rr, cc] = 255
 			elif self.shape[0, b] == 'rectangle':
-				start  = ((max_s - self.sizy[0, b])//2, (max_s - self.sizx[0, b])//2)
-				extent = (self.sizy[0, b], self.sizx[0, b])
+				start  = (int(max_s - self.sizy[0, b])//2, int(max_s - self.sizx[0, b])//2)
+				extent = (int(self.sizy[0, b]), int(self.sizx[0, b]))
 				rr, cc = rectangle(start=start, extent=extent, shape=patch.shape)
-				rr     = rr.astype(int)
-				cc     = cc.astype(int)
 				patch[rr, cc] = 255
 			# if self.shape == 'triangle':
 			# 	rr, cc = polygon(...)
 			if self.shape[0, b] == 'vernier':
-				max_s    = int(1.5*max_s)  # faire mieux
-				patch    = np.zeros((max_s, max_s))
-				dim_w    = self.sizx[0, b]/1.5
-				dim_h    = self.sizy[0, b]*1.5
 				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b]
-				v_siz_w  = rng().randint(1 + dim_w//10, dim_w//2)
-				v_siz_h  = rng().randint(1 + dim_h//4,  dim_h//2)
-				v_off_w  = rng().randint(1,              1 + (dim_w - v_siz_w)//2)*2
-				v_off_h  = rng().randint(1 + v_siz_h//2, 1 + (dim_h - v_siz_h)//2)*2
+				v_siz_w  = rng().randint(1 + self.sizx[0, b]//6, self.sizx[0, b]//2)
+				v_siz_h  = rng().randint(1 + self.sizy[0, b]//4, self.sizy[0, b]//2)
+				v_off_w  = rng().randint(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2
+				v_off_h  = rng().randint(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2
 				start1   = ((max_s - v_off_h - v_siz_h)//2, (max_s - v_off_w - v_siz_w)//2)
 				start2   = ((max_s + v_off_h - v_siz_h)//2, (max_s + v_off_w - v_siz_w)//2)
 				extent   = (v_siz_h, v_siz_w)
 				rr1, cc1 = rectangle(start=start1, extent=extent, shape=patch.shape)
 				rr2, cc2 = rectangle(start=start2, extent=extent, shape=patch.shape)
-				rr1      = rr1.astype(int)
-				cc1      = cc1.astype(int)
-				rr2      = rr2.astype(int)
-				cc2      = cc2.astype(int)
 				patch[rr1, cc1] = 255
 				patch[rr2, cc2] = 255
 				if vside:  # 0 is R vernier and 1 is L vernier
 					patch = np.fliplr(patch)
 			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
-			
+
 	# Compute what must be updated between the frames
 	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d):
 		pass
@@ -278,7 +271,11 @@ class BatchMaker():
 			for obj in self.objects:
 				obj.update_states(self.batch_s, self.friction, self.gravity)
 			self.batch.append(frame)
-		return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
+		if self.set_type == 'recons':
+			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
+		else:
+			return self.batch, self.objects[0].vside[0]  # verniers share same offset in each sequence
+
 
 # Show example of reconstruction batch
 if __name__ == '__main__':
@@ -288,19 +285,19 @@ if __name__ == '__main__':
   import os
   object_type  = 'neil'
   set_type     = 'decode'
-  n_objects    = 4
+  n_objects    = 2
   n_frames     = 20
   scale        = 2
-  batch_s      = 1
+  batch_s      = 4
   n_channels   = 3
   batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, n_channels))
-  batch_frames = batch_maker.generate_batch()
-  gif_name     = 'test_output.gif'
-
-  frames = []
+  
+  gif_name        = 'test_output.gif'
+  batch_frames, _ = batch_maker.generate_batch()
+  display_frames  = []
   for t in range(n_frames):
-  	frames.append(np.hstack([batch_frames[t][b] for b in range(batch_s)]))
-  imageio.mimsave(gif_name, frames, duration=0.1)
+  	display_frames.append(np.hstack([batch_frames[t][b] for b in range(batch_s)]))
+  imageio.mimsave(gif_name, display_frames, duration=0.1)
   anim   = pyglet.resource.animation(gif_name)
   sprite = pyglet.sprite.Sprite(anim)
   window = pyglet.window.Window(width=sprite.width, height=sprite.height)

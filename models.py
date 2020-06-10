@@ -208,9 +208,9 @@ class Wrapper(tf.keras.Model):
     else:
       losses = [w*tf.reduce_sum((recons[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
     frame_losses = [w*tf.reduce_sum((x[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
-    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)  # new idea!!
+    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
 
-  def train_step(self, x, b, e, opt):
+  def train_step(self, x, b, e, opt, labels=None):
     with tf.GradientTape() as tape:
       x        = tf.cast(x, tf.float32)
       recs     = self.get_reconstructions(x)
