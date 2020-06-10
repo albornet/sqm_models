@@ -208,23 +208,44 @@ class Wrapper(tf.keras.Model):
     else:
       losses = [w*tf.reduce_sum((recons[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
     frame_losses = [w*tf.reduce_sum((x[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
-    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
+    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)  # new idea!!
+
+  def compute_dec_loss(self, labels, decod):
+    criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
+    nb_classes = labels.max() + 1
+    #targets = tf.keras.backend.zeros((labels.size(0), nb_classes)).scatter_nd(1, labels.view(-1, 1), 1)
+    targets = tf.one_hot(labels, nb_classes)
+    losses = criterion(targets, decod)
+    return losses
 
   def train_step(self, x, b, e, opt, labels=None):
-    with tf.GradientTape() as tape:
-      x        = tf.cast(x, tf.float32)
-      recs     = self.get_reconstructions(x)
-      rec_loss = self.compute_rec_loss(x, recs)
-    if isinstance(self.model, PredNet):  # Prednet generates reconstructions itself
-      vars_to_train = self.model.trainable_variables
+    if labels is not None:
+      with tf.GradientTape() as tape:
+        x        = tf.cast(x, tf.float32)
+        recs     = self.get_reconstructions(x)
+        decs     = self.decoder(recs)
+        dec_loss = self.compute_dec_loss(labels, decs)
+        vars_to_train = self.decoder.trainable_variables
+      grad = tape.gradient(dec_loss, vars_to_train)
+      opt.apply_gradients((zip(grad, vars_to_train)))
+      if b == 0:
+        lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
+        print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
     else:
-      vars_to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
-    grad = tape.gradient(rec_loss, vars_to_train)
-    opt.apply_gradients(zip(grad, vars_to_train))
-    if b == 0:
-      lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
-      print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
-      self.plot_output(x, recs)
+      with tf.GradientTape() as tape:
+        x        = tf.cast(x, tf.float32)
+        recs     = self.get_reconstructions(x)
+        rec_loss = self.compute_rec_loss(x, recs)
+      if isinstance(self.model, PredNet):  # Prednet generates reconstructions itself
+        vars_to_train = self.model.trainable_variables
+      else:
+        vars_to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
+      grad = tape.gradient(rec_loss, vars_to_train)
+      opt.apply_gradients(zip(grad, vars_to_train))
+      if b == 0:
+        lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
+        print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
+        self.plot_output(x, recs)
   
   def plot_output(self, x, r):
 
