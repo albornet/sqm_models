@@ -233,9 +233,9 @@ class Wrapper(tf.keras.Model):
         vars_to_train = self.decoder.trainable_variables
       grad = tape.gradient(dec_loss, vars_to_train)
       opt.apply_gradients((zip(grad, vars_to_train)))
-      if b % 4 == 0:
+      if b == 0:
         lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
-        print('\nEpoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
+        print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
     else:
       with tf.GradientTape() as tape:
         x        = tf.cast(x, tf.float32)
