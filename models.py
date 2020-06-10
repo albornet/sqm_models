@@ -190,6 +190,7 @@ class Wrapper(tf.keras.Model):
 
   def get_reconstructions(self, x):
     if isinstance(self.model, PredNet):
+      #print(self.model(x)[0]) #shape=(16, 20, 64, 64, 3)
       return self.model(x)[0]
     else:
       x = tf.cast(x, tf.float32)
@@ -198,6 +199,12 @@ class Wrapper(tf.keras.Model):
       for t in range(self.n_frames):
         recs.append(self.reconstructor(states[:,t]))
       return tf.stack(recs, axis=1)
+  
+  def decode(self, recons):
+    decs = []
+    for n in range(self.n_frames):
+      decs.append(self.decoder(recons[:, n]))
+    return decs
 
   def compute_rec_loss(self, x, recons):
     weights = [1.0/(n+1) for n in range(self.n_frames-1)]  # first frame cannot be predicted
@@ -212,22 +219,21 @@ class Wrapper(tf.keras.Model):
 
   def compute_dec_loss(self, labels, decod):
     criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
-    #targets = tf.keras.backend.zeros((labels.size(0), 2)).scatter_nd(1, labels.view(-1, 1), 1)
     targets = tf.one_hot(labels, 2)
-    losses = criterion(targets, decod)
-    return losses
+    losses = [criterion(targets, decod[n]) for n in range(self.n_frames)]
+    return tf.reduce_sum(losses) # not normalized
 
   def train_step(self, x, b, e, opt, labels=None):
     if labels is not None:
+      x        = tf.cast(x, tf.float32)
+      recs     = self.get_reconstructions(x)
       with tf.GradientTape() as tape:
-        x        = tf.cast(x, tf.float32)
-        recs     = self.get_reconstructions(x)
-        decs     = self.decoder(recs)
+        decs     = self.decode(recs)
         dec_loss = self.compute_dec_loss(labels, decs)
         vars_to_train = self.decoder.trainable_variables
       grad = tape.gradient(dec_loss, vars_to_train)
       opt.apply_gradients((zip(grad, vars_to_train)))
-      if b == 0:
+      if b % 4 == 0:
         lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
         print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
     else:
