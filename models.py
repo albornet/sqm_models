@@ -190,8 +190,7 @@ class Wrapper(tf.keras.Model):
 
   def get_reconstructions(self, x):
     if isinstance(self.model, PredNet):
-      #print(self.model(x)[0]) #shape=(16, 20, 64, 64, 3)
-      return self.model(x)[0]
+        return self.model(x)[0]
     else:
       x = tf.cast(x, tf.float32)
       states = self.model(x)
@@ -200,10 +199,10 @@ class Wrapper(tf.keras.Model):
         recs.append(self.reconstructor(states[:,t]))
       return tf.stack(recs, axis=1)
   
-  def decode(self, recons):
+  def decode(self, lat_var):
     decs = []
     for n in range(self.n_frames):
-      decs.append(self.decoder(recons[:, n]))
+      decs.append(self.decoder(lat_var[:, n]))
     return decs
 
   def compute_rec_loss(self, x, recons):
@@ -224,12 +223,12 @@ class Wrapper(tf.keras.Model):
     losses = [w*criterion(targets, decod[n+1]) for n, w in enumerate(weights)]
     return tf.reduce_sum(losses) # not normalized
 
-  def train_step(self, x, b, e, opt, labels=None):
+  def train_step(self, x, b, e, opt, labels=None, layer_decod=-1):
     if labels is not None:
       with tf.GradientTape() as tape:
         x        = tf.cast(x, tf.float32)
-        recs     = self.get_reconstructions(x)
-        decs     = self.decode(recs)
+        lat_var  = self.model(x)[layer_decod]
+        decs     = self.decode(lat_var)
         dec_loss = self.compute_dec_loss(labels, decs)
         vars_to_train = self.decoder.trainable_variables
       grad = tape.gradient(dec_loss, vars_to_train)

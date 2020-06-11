@@ -6,7 +6,7 @@ from dataset import BatchMaker
 from models import *
 
 
-def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr):
+def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch = False):
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
@@ -18,13 +18,19 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
   model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
   ckpt_model = tf.train.Checkpoint(step=tf.Variable(0), optimizer=optim, net=wrapp.model)
   mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
-  ckpt_model.restore(mngr_model.latest_checkpoint)
-  if mngr_model.latest_checkpoint:
-    print('\nModel %s restored from %s' % (wrapp.model_name, mngr_model.latest_checkpoint))
+  if not from_scratch:
+    ckpt_model.restore(mngr_model.latest_checkpoint)
+    if mngr_model.latest_checkpoint:
+      print('\nModel %s restored from %s' % (wrapp.model_name, mngr_model.latest_checkpoint))
+    else:
+      print('\nModel %s initialized from scratch' % (wrapp.model_name))
+      if not os.path.exists('./%s' % (wrapp.model_name,)):
+        os.mkdir('./%s' % (wrapp.model_name,))
   else:
     print('\nModel %s initialized from scratch' % (wrapp.model_name))
     if not os.path.exists('./%s' % (wrapp.model_name,)):
       os.mkdir('./%s' % (wrapp.model_name,))
+
 
   # Training loop for the reconstruction part
   batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
