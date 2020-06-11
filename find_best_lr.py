@@ -32,7 +32,7 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
                 losses.append(loss)
                 optim.learning_rate = lrs[count]
                 count += 1
-                print('\nBatch %02i, lr = %.5f, dec loss = %.3f' % (b, optim.learning_rate.numpy(), loss))
+                print('\nBatch %02i, lr = %.5f, dec loss = %.3f' % (b, optim.learning_rate.numpy(), loss.numpy()))
     else:
         for e in range(n_epochs):
             for b in range(n_batches): # batch shape: (batch_s, n_frames) + im_dims
@@ -41,7 +41,7 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
                 losses.append(loss)
                 optim.learning_rate = lrs[count]
                 count += 1
-                print('\nBatch %02i, lr = %.5f, dec loss = %.3f' % (b, optim.learning_rate.numpy(), loss))
+                print('\nBatch %02i, lr = %.5f, dec loss = %.3f' % (b, optim.learning_rate.numpy(), loss.numpy()))
     
     # Plot the loss vs learning rate
     plt.figure()
