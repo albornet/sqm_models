@@ -220,14 +220,15 @@ class Wrapper(tf.keras.Model):
   def compute_dec_loss(self, labels, decod):
     criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
     targets = tf.one_hot(labels, 2)
-    losses = [criterion(targets, decod[n]) for n in range(self.n_frames)]
+    weights = [1.0/(n+1) for n in range(self.n_frames-1)]
+    losses = [w*criterion(targets, decod[n+1]) for n, w in enumerate(weights)]
     return tf.reduce_sum(losses) # not normalized
 
   def train_step(self, x, b, e, opt, labels=None):
     if labels is not None:
-      x        = tf.cast(x, tf.float32)
-      recs     = self.get_reconstructions(x)
       with tf.GradientTape() as tape:
+        x        = tf.cast(x, tf.float32)
+        recs     = self.get_reconstructions(x)
         decs     = self.decode(recs)
         dec_loss = self.compute_dec_loss(labels, decs)
         vars_to_train = self.decoder.trainable_variables
@@ -236,6 +237,8 @@ class Wrapper(tf.keras.Model):
       if b == 0:
         lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
         print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
+      return dec_loss
+      
     else:
       with tf.GradientTape() as tape:
         x        = tf.cast(x, tf.float32)
@@ -251,6 +254,7 @@ class Wrapper(tf.keras.Model):
         lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
         print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
         self.plot_output(x, recs)
+      return rec_loss
   
   def plot_output(self, x, r):
 
