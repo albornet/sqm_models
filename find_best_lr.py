@@ -1,8 +1,10 @@
 # Estimate the optimal initial learning rate
 
 import tensorflow as tf
-import numpy as np
+from tensorflow.keras.callbacks import LearningRateScheduler 
+import tensorflow.keras.backend as K
 import matplotlib.pyplot as plt
+import math
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # avoid printing GPU info messages
 os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
@@ -11,44 +13,73 @@ from dataset import BatchMaker
 from models import *
 
 
-def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode'):
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+
+    def __init__(self, n_epochs, n_batches, rate = 1.1, init_lr = 1e-8):
+        super(CustomSchedule, self).__init__()
+        self.predefined_lr = [(init_lr * rate) ** (step/(n_epochs*n_batches)) for step in (n_epochs*n_batches)]
+
+    def __call__(self, step):
+        return self.predefined_lr[step]
+
+
+
+
+def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', custom = False):
 
     batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
-
+    
     # Learning devices
-    lower_lr = 1e-5
-    upper_lr = 1e-1
-    lrs = np.linspace(lower_lr, upper_lr, n_epochs*n_batches)
-    losses = []
-    optim = tf.keras.optimizers.Adam(learning_rate=lower_lr)
+    if custom:
+        sched = CustomSchedule(n_epochs, n_batches)
+    else:
+        init_lr = 1e-8
+        decay_steps = n_epochs*n_batches
+        decay_rate = 1.1
+        sched = tf.keras.optimizers.schedules.ExponentialDecay(
+        init_lr, decay_steps, decay_rate, staircase=False, name=None)
 
-    count = 0
+    optim = tf.keras.optimizers.Adam(sched)
+
+
+    lrs = []
+    losses = []
 
     if mode == 'recons':
         for e in range(n_epochs):
             for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
                 batch = tf.stack(batch_maker.generate_batch(), axis=1)/255
                 loss = wrapp.train_step(batch, b, e, optim)
-                losses.append(loss)
-                optim.learning_rate = lrs[count]
-                count += 1
+                losses.append(loss.numpy())
+                updated_lr = optim._decayed_lr(tf.float32).numpy()
+                lrs.append(updated_lr)
+                print('\nBatch %02i, lr = %s, dec loss = %.4f' % (b, updated_lr, loss))
+
     else:
         for e in range(n_epochs):
             for b in range(n_batches): # batch shape: (batch_s, n_frames) + im_dims
                 batch, labels = batch_maker.generate_batch()
                 loss = wrapp.train_step(tf.stack(batch, axis=1)/255, b, e, optim, labels)
-                losses.append(loss)
-                optim.learning_rate = lrs[count]
-                count += 1
-                
-    
+                losses.append(loss.numpy())
+                updated_lr = optim._decayed_lr(tf.float32).numpy()
+                lrs.append(updated_lr)
+                print('\nBatch %02i, lr = %s, dec loss = %.4f' % (b, updated_lr, loss))
+
+
     # Plot the loss vs learning rate
+    plot_output(lrs, losses, wrapp.model_name)
+
+def plot_output(lrs, losses, name):
+
     plt.figure()
     plt.ylabel("Loss")
     plt.xlabel("Learning rate (log scale)")
     plt.xscale("log")
     plt.plot(lrs, losses)
     plt.show()
+    plt.savefig('./%s/loss_vs_lr.png' % (name))
+    plt.close()
+
 
 
 if __name__ == '__main__':
@@ -59,7 +90,7 @@ if __name__ == '__main__':
   n_frames    = 20           # frames in the input sequences
   n_epochs    = 50          # epochs ran after latest checkpoint epoch
   batch_size  = 16           # sample sequences sent in parallel
-  n_batches   = 64           # batches per epoch
+  n_batches   = 4           # batches per epoch
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   wrapp       = Wrapper(model, my_recons, my_decoder, n_frames, name)
   find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, 'decode')

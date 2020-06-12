@@ -33,7 +33,7 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
 
 
   # Training loop for the reconstruction part
-  batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
+  batch_maker = BatchMaker('decode', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
   for e in range(n_epochs):
     if ckpt_model.step % 10 == 0 and e > 0:
       mngr_model.save()
@@ -47,13 +47,13 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
 
 if __name__ == '__main__':
 
-  obj_type    = 'ball'       # can be 'ball' or 'neil' for now
-  n_objs      = 3            # number of moving object in each sample
+  obj_type    = 'neil'       # can be 'ball' or 'neil' for now
+  n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 3)  # image dimensions
   n_frames    = 20           # frames in the input sequences
   n_epochs    = 200          # epochs ran after latest checkpoint epoch
   batch_size  = 16           # sample sequences sent in parallel
-  n_batches   = 64           # batches per epoch
+  n_batches   = 6           # batches per epoch
   init_lr     = 2e-4         # first parameter to tune if does not work
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   wrapp       = Wrapper(model, my_recons, my_decoder, n_frames, name)
