@@ -63,10 +63,14 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
                 lrs.append(updated_lr)
                 print('\nBatch %02i, lr = %s, dec loss = %.4f' % (b, updated_lr, loss))
 
-
-    print('Min loss for lr = %s, opt lr = %s' %(lrs[np.argmin(losses)], lrs[np.argmin(losses)]/10))
+    lr_for_min_loss = lrs[np.argmin(losses)]
+    lr_opt = lrs[np.argmin(losses)]/10
+    print('Min loss for lr = %s, opt lr = %s' %(lr_for_min_loss, lr_opt))
+    
     # Plot the loss vs learning rate
     plot_output(lrs, losses, wrapp.model_name)
+
+    return lr_opt
 
 def plot_output(lrs, losses, name):
     plt.figure()
