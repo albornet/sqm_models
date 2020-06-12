@@ -23,11 +23,9 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __call__(self, step):
         return self.predefined_lr[int(step)-1]
 
-def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', verniers = False, custom = True):
+def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', custom = True):
 
-    if verniers:
-        batch_maker = BatchMaker('decode', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
-    else: batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
+    batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
     
     # Learning devices
     init_lr = 1e-8
@@ -84,8 +82,8 @@ def plot_output(lrs, losses, name):
 
 if __name__ == '__main__':
 
-  obj_type    = 'ball'       # can be 'ball' or 'neil' for now
-  n_objs      = 3            # number of moving object in each sample
+  obj_type    = 'neil'       # can be 'ball' or 'neil' for now
+  n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 3)  # image dimensions
   n_frames    = 20           # frames in the input sequences
   n_epochs    = 50          # epochs ran after latest checkpoint epoch
@@ -93,4 +91,4 @@ if __name__ == '__main__':
   n_batches   = 4           # batches per epoch
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   wrapp       = Wrapper(model, my_recons, my_decoder, n_frames, name)
-  find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, 'recons')
+  find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, 'recons', custom=True)

@@ -143,7 +143,8 @@ class Neil():
 
 		# Select id, color, sizes, orientations, etc.
 		if set_type == 'recons':
-			choices    = ['rectangle', 'ellipse', 'vernier']
+			#choices    = ['rectangle', 'ellipse', 'vernier']
+			choices    = ['vernier']
 			self.ori   = rng().uniform(0, 2*np.pi, (1, batch_s))
 		if set_type == 'decode':
 			choices    = ['vernier']

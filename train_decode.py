@@ -24,6 +24,8 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
   mngr_decoder = tf.train.CheckpointManager(ckpt_decoder, directory=decoder_dir, max_to_keep=1)
   ckpt_model.restore(mngr_model.latest_checkpoint)
   ckpt_decoder.restore(mngr_decoder.latest_checkpoint)
+  if not mngr_model.latest_checkpoint:
+    print('\n Problem for loading reconstruction weights')
   if mngr_decoder.latest_checkpoint:
     print('\nDecoder restored from %s' % (mngr_decoder.latest_checkpoint))
   else:
@@ -40,7 +42,7 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     ckpt_decoder.step.assign_add(1)
     for b in range(n_batches): # batch shape: (batch_s, n_frames) + im_dims
       batch, labels = batch_maker.generate_batch()
-      wrapp.train_step(tf.stack(batch, axis=1)/255, b, e, optim, labels)
+      wrapp.train_step(tf.stack(batch, axis=1)/255, b, e, optim, labels, -1)
       print('\r Running batch %02i/%2i' % (b+1, n_batches), end='')
 
 

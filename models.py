@@ -236,6 +236,7 @@ class Wrapper(tf.keras.Model):
       if b == 0:
         lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
         print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
+        self.plot_output(x, self.get_reconstructions(x))
       return dec_loss
       
     else:
