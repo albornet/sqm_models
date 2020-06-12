@@ -15,32 +15,32 @@ from models import *
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
-    def __init__(self, n_epochs, n_batches, rate = 1.1, init_lr = 1e-8):
+    def __init__(self, n_epochs, n_batches, init_lr = 1e-8, end_lr = 0.5):
         super(CustomSchedule, self).__init__()
-        self.predefined_lr = [(init_lr * rate) ** (step/(n_epochs*n_batches)) for step in (n_epochs*n_batches)]
+        self.predefined_lr = [init_lr * math.exp(step * math.log(end_lr/init_lr)/(n_epochs*n_batches)) for step in range(n_epochs*n_batches)]
 
     def __call__(self, step):
-        return self.predefined_lr[step]
+        return self.predefined_lr[step-1]
 
 
 
 
-def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', custom = False):
+def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', custom = True):
 
     batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
     
     # Learning devices
+    init_lr = 1e-8
+    end_lr = 0.5
     if custom:
-        sched = CustomSchedule(n_epochs, n_batches)
+        sched = CustomSchedule(n_epochs, n_batches, init_lr, end_lr)
     else:
-        init_lr = 1e-8
         decay_steps = n_epochs*n_batches
         decay_rate = 1.1
         sched = tf.keras.optimizers.schedules.ExponentialDecay(
         init_lr, decay_steps, decay_rate, staircase=False, name=None)
 
     optim = tf.keras.optimizers.Adam(sched)
-
 
     lrs = []
     losses = []
