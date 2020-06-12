@@ -20,10 +20,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         self.predefined_lr = [init_lr * math.exp(step * math.log(end_lr/init_lr)/(n_epochs*n_batches)) for step in range(n_epochs*n_batches)]
 
     def __call__(self, step):
-        return self.predefined_lr[step-1]
-
-
-
+        return self.predefined_lr[step]
 
 def find_best_lr(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, mode = 'decode', custom = True):
 
