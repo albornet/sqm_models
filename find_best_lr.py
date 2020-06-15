@@ -25,8 +25,8 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', custom=True):
   
   # Simulation parameters
-  n_samples = 10   # how many lrs are tried
-  init_lr   = 1e-5  # smallest lr tried
+  n_samples = 100   # how many lrs are tried
+  init_lr   = 1e-7  # smallest lr tried
   stop_lr   = 1e-0  # largest lr tried
 
   # Learning devices
