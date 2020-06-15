@@ -44,20 +44,22 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
   lrs         = []
   losses      = []
 
-  # First train over 10 epochs
-  print("First train over 10 epochs")
-  sched_e = tf.keras.experimental.CosineDecayRestarts(
+  ######### Pre train over 10 epochs ########
+  print("Pre train over 10 epochs")
+  sched_pretraining = tf.keras.experimental.CosineDecayRestarts(
     initial_learning_rate=2e-4, first_decay_steps=10*64,
     t_mul=2.0, m_mul=0.9, alpha=0.2)
-  optim_e = tf.keras.optimizers.Adam(sched_e)  
-  optim = tf.keras.optimizers.Adam(scheduler)
+  optim_pretraining = tf.keras.optimizers.Adam(sched_pretraining)
+
   for e in range(10):
     for b in range(64):  # batch shape: (batch_s, n_frames) + im_dims
       batch = tf.stack(batch_maker.generate_batch(), axis=1)/255
-      rec_loss = wrapp.train_step(batch, b, e, optim_e)
+      rec_loss = wrapp.train_step(batch, b, e, optim_pretraining)
       if b == 0:
-        lr_str = "{:.2e}".format(optim._decayed_lr(tf.float32).numpy())
+        lr_str = "{:.2e}".format(optim_pretraining._decayed_lr(tf.float32).numpy())
         print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
+      print('\r  Running batch %02i/%2i' % (b+1, 64), end='')
+  ############################################  
 
   for s in range(n_samples):
 
