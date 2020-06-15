@@ -219,7 +219,8 @@ class Wrapper(tf.keras.Model):
   def compute_dec_loss(self, labels, decod):
     criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
     targets = tf.one_hot(labels, 2)
-    weights = [1.0/(n+1) for n in range(self.n_frames-1)]
+    #weights = [1.0/(n+1) for n in range(self.n_frames-1)]
+    weights = [1.0 for n in range (self.n_frames-1)]
     losses = [w*criterion(targets, decod[n+1]) for n, w in enumerate(weights)]
     return tf.reduce_sum(losses) # not normalized
 
