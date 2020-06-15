@@ -185,13 +185,13 @@ class Neil():
 			# 	rr, cc = polygon(...)
 			if self.shape[0, b] == 'vernier':
 				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b]
-				v_siz_w  = rng().randint(1 + self.sizx[0, b]//6, self.sizx[0, b]//2)
-				v_siz_h  = rng().randint(1 + self.sizy[0, b]//4, self.sizy[0, b]//2)
-				v_off_w  = rng().randint(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2
-				v_off_h  = rng().randint(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2
-				start1   = ((max_s - v_off_h - v_siz_h)//2, (max_s - v_off_w - v_siz_w)//2)
-				start2   = ((max_s + v_off_h - v_siz_h)//2, (max_s + v_off_w - v_siz_w)//2)
-				extent   = (v_siz_h, v_siz_w)
+				v_siz_w  = rng().uniform(1 + self.sizx[0, b]//6, 1 + self.sizx[0, b]//2)
+				v_siz_h  = rng().uniform(1 + self.sizy[0, b]//4, 1 + self.sizy[0, b]//2)
+				v_off_w  = rng().uniform(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2
+				v_off_h  = rng().uniform(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2
+				start1   = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - v_off_w - v_siz_w)//2))
+				start2   = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + v_off_w - v_siz_w)//2))
+				extent   = (int(v_siz_h), int(v_siz_w))
 				rr1, cc1 = rectangle(start=start1, extent=extent, shape=patch.shape)
 				rr2, cc2 = rectangle(start=start2, extent=extent, shape=patch.shape)
 				patch[rr1, cc1] = 255

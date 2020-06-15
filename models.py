@@ -224,25 +224,26 @@ class Wrapper(tf.keras.Model):
     return tf.reduce_sum(losses) # not normalized
 
   def train_step(self, x, b, e, opt, labels=None, layer_decod=-1):
+
+    # Train decoding
     if labels is not None:
       with tf.GradientTape() as tape:
-        x        = tf.cast(x, tf.float32)
-        lat_var  = self.model(x)[layer_decod]
-        decs     = self.decode(lat_var)
+        x = tf.cast(x, tf.float32)
+        lat_var = self.model(x)[layer_decod]
+        decs = self.decode(lat_var)
         dec_loss = self.compute_dec_loss(labels, decs)
         vars_to_train = self.decoder.trainable_variables
       grad = tape.gradient(dec_loss, vars_to_train)
       opt.apply_gradients((zip(grad, vars_to_train)))
       if b == 0:
-        lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
-        print('\nStarting epoch %03i, lr = %s, decod loss = %.3f' % (e, lr_str, dec_loss))
         self.plot_output(x, self.get_reconstructions(x))
       return dec_loss
       
+    # Train reconstruction
     else:
       with tf.GradientTape() as tape:
-        x        = tf.cast(x, tf.float32)
-        recs     = self.get_reconstructions(x)
+        x = tf.cast(x, tf.float32)
+        recs = self.get_reconstructions(x)
         rec_loss = self.compute_rec_loss(x, recs)
       if isinstance(self.model, PredNet):  # Prednet generates reconstructions itself
         vars_to_train = self.model.trainable_variables
@@ -251,11 +252,9 @@ class Wrapper(tf.keras.Model):
       grad = tape.gradient(rec_loss, vars_to_train)
       opt.apply_gradients(zip(grad, vars_to_train))
       if b == 0:
-        lr_str = "{:.2e}".format(opt._decayed_lr(tf.float32).numpy())
-        print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
         self.plot_output(x, recs)
       return rec_loss
-  
+ 
   def plot_output(self, x, r):
 
     # Plot frames
