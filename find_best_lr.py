@@ -38,24 +38,28 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
     init_lr, n_samples, decay_rate, staircase=False, name=None)
   optim = tf.keras.optimizers.Adam(scheduler)
 
-  # Load checkpoint if necessary
-  if not from_scratch or mode == 'decode':
-    print('Loading trained reconstruction weights...')
-    model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
-    ckpt_model = tf.train.Checkpoint(net=wrapp.model)
-    mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
-    ckpt_model.restore(mngr_model.latest_checkpoint)
-    if not from_scratch and mode == 'decode':
-      print('Loading trained decoding weights...')
-      decoder_dir  = '%s/%s/ckpt_decod' % (os.getcwd(), wrapp.model_name)
-      ckpt_decoder = tf.train.Checkpoint(net=wrapp.decoder)
-      mngr_decoder = tf.train.CheckpointManager(ckpt_decoder, directory=decoder_dir, max_to_keep=1)
-      ckpt_decoder.restore(mngr_decoder.latest_checkpoint)
-
   # Run batches with increasing learning rates 
   batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
   lrs         = []
   losses      = []
+
+  ######### Pre train over 10 epochs ########
+  print("Pre train over 10 epochs")
+  sched_pretraining = tf.keras.experimental.CosineDecayRestarts(
+    initial_learning_rate=2e-4, first_decay_steps=10*64,
+    t_mul=2.0, m_mul=0.9, alpha=0.2)
+  optim_pretraining = tf.keras.optimizers.Adam(sched_pretraining)
+
+  for e in range(10):
+    for b in range(64):  # batch shape: (batch_s, n_frames) + im_dims
+      batch = tf.stack(batch_maker.generate_batch(), axis=1)/255
+      rec_loss = wrapp.train_step(batch, b, e, optim_pretraining)
+      if b == 0:
+        lr_str = "{:.2e}".format(optim_pretraining._decayed_lr(tf.float32).numpy())
+        print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
+      print('\r  Running batch %02i/%2i' % (b+1, 64), end='')
+  ############################################  
+
   for s in range(n_samples):
 
     # Compute loss

@@ -29,6 +29,34 @@ my_decoder = tf.keras.Sequential(
      tf.keras.layers.Dense(  2, activation='softmax')])
 
 
+# Simple fully convolutional decoder
+my_fully_conv_decoder = tf.keras.Sequential(
+    [tf.keras.layers.Conv2D(512, (1,1), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.BatchNormalization(),
+     tf.keras.layers.Conv2D(2, (1,1), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.BatchNormalization(),
+     tf.keras.layers.GlobalAveragePooling2D(),
+     tf.keras.layers.Softmax()])
+
+
+# All-convolutional decoder with "pooling-like" convolutional layers
+all_cnn_decoder = tf.keras.Sequential(
+    [tf.keras.layers.BatchNormalization(),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(2,2), padding='same', activation='relu'),
+     tf.keras.layers.BatchNormalization(),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(2,2), padding='same', activation='relu'),
+     tf.keras.layers.BatchNormalization(),
+     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(2, (1,1), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.GlobalAveragePooling2D(),
+     tf.keras.layers.Softmax()])
+
+
+
 ###################
 ### Core models ###
 ###################
