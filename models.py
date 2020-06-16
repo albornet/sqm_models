@@ -182,6 +182,7 @@ class Wrapper(tf.keras.Model):
     self.decoder       = decoder
     self.n_frames      = n_frames
     self.model_name    = model_name
+    self.accuracy      = tf.keras.metrics.Accuracy()
 
   def call(self, img):
     x      = tf.tile(tf.expand_dims(img, axis=1), (1, self.n_frames, 1, 1, 1))
@@ -199,12 +200,6 @@ class Wrapper(tf.keras.Model):
         recs.append(self.reconstructor(states[:,t]))
       return tf.stack(recs, axis=1)
   
-  def decode(self, lat_var):
-    decs = []
-    for n in range(self.n_frames):
-      decs.append(self.decoder(lat_var[:, n]))
-    return decs
-
   def compute_rec_loss(self, x, recons):
     weights = [1.0/(n+1) for n in range(self.n_frames-1)]  # first frame cannot be predicted
     if isinstance(self.model, PredNet):                    # nth PredNet output predicts nth frame
@@ -214,43 +209,49 @@ class Wrapper(tf.keras.Model):
     else:
       losses = [w*tf.reduce_sum((recons[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
     frame_losses = [w*tf.reduce_sum((x[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
-    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)  # new idea!!
+    return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
 
-  def compute_dec_loss(self, labels, decod):
-    criterion = tf.keras.losses.BinaryCrossentropy() # for the moment
-    targets = tf.one_hot(labels, 2)
-    weights = [1.0/(n+1) for n in range(self.n_frames-1)]
-    losses = [w*criterion(targets, decod[n+1]) for n, w in enumerate(weights)]
-    return tf.reduce_sum(losses) # not normalized
+  def compute_dec_loss(self, labels, lat_var):
+    criterion = tf.keras.losses.BinaryCrossentropy()  # for the moment
+    targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
+    weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
+    losses    = tf.zeros(labels.shape)
+    accurs    = 0.0
+    for t in range(self.n_frames):
+      decoding = self.decoder(lat_var[:, t])
+      losses  += weights[t]*criterion(targets, decoding)
+      self.accuracy.update_state(labels, tf.argmax(decoding, 1))
+      accurs  += self.accuracy.result()
+    self.accuracy.reset_states()
+    return accurs/self.n_frames, tf.reduce_sum(losses)/self.n_frames
 
-  def train_step(self, x, b, e, opt, labels=None, layer_decod=-1):
+  def train_step(self, x, b, opt, labels=None, layer_decod=-1):
 
     # Train decoding
     if labels is not None:
       with tf.GradientTape() as tape:
-        x = tf.cast(x, tf.float32)
-        lat_var = self.model(x)[layer_decod]
-        decs = self.decode(lat_var)
-        dec_loss = self.compute_dec_loss(labels, decs)
-        vars_to_train = self.decoder.trainable_variables
-      grad = tape.gradient(dec_loss, vars_to_train)
-      opt.apply_gradients((zip(grad, vars_to_train)))
+        x         = tf.cast(x, tf.float32)
+        lat_var   = self.model(x)[layer_decod]
+        acc, loss = self.compute_dec_loss(labels, lat_var)
+        to_train  = self.decoder.trainable_variables
+      grad = tape.gradient(loss, to_train)
+      opt.apply_gradients((zip(grad, to_train)))
       if b == 0:
         self.plot_output(x, self.get_reconstructions(x))
-      return dec_loss
+      return acc, loss
       
     # Train reconstruction
     else:
       with tf.GradientTape() as tape:
-        x = tf.cast(x, tf.float32)
-        recs = self.get_reconstructions(x)
+        x        = tf.cast(x, tf.float32)
+        recs     = self.get_reconstructions(x)
         rec_loss = self.compute_rec_loss(x, recs)
       if isinstance(self.model, PredNet):  # Prednet generates reconstructions itself
-        vars_to_train = self.model.trainable_variables
+        to_train = self.model.trainable_variables
       else:
-        vars_to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
-      grad = tape.gradient(rec_loss, vars_to_train)
-      opt.apply_gradients(zip(grad, vars_to_train))
+        to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
+      grad = tape.gradient(rec_loss, to_train)
+      opt.apply_gradients(zip(grad, to_train))
       if b == 0:
         self.plot_output(x, recs)
       return rec_loss
