@@ -65,22 +65,10 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
   lr_for_min_loss = lrs[np.argmin(losses)]
   lr_opt          = lr_for_min_loss/10
   print('\nMin loss for lr = %s, opt lr = %s' %(lr_for_min_loss, lr_opt)) 
-  plot_output(lrs, losses, wrapp.model_name)
+  wrapp.plot_results(lrs, losses, 'lr', 'loss', mode)
 
   # Return best lr
   return lr_opt
-
-
-def plot_output(lrs, losses, name):
-    plt.figure()
-    plt.ylabel("Loss")
-    plt.xlabel("Learning rate (log scale)")
-    plt.xscale("log")
-    plt.plot(lrs, losses)
-    plt.grid()
-    plt.savefig('./%s/loss_vs_lr.png' % (name))
-    plt.show()
-    plt.close()
 
 
 if __name__ == '__main__':
@@ -91,8 +79,8 @@ if __name__ == '__main__':
   im_dims     = (64, 64, 1)  # image dimensions
   n_frames    = 10           # frames in the input sequences
   batch_size  = 16           # sample sequences sent in parallel
-  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
-  decoder     = conv_decoder()
+  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
+  decoder     = simple_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
   init_lr     = find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode=train_mode, custom=False, from_scratch=True)
   

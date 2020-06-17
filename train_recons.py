@@ -57,7 +57,9 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     losses.assign_add(tf.Variable(tf.cast(loss_tens, tf.float32)))
 
   # Plot the loss vs epochs
-  wrapp.plot_results(tf.cast(optim.iterations, tf.float32).numpy()/n_batches, losses, 'loss', 'recons')
+  epoch  = int(tf.cast(optim.iterations, tf.float32).numpy()/n_batches)
+  losses = tf.squeeze(losses)[:int(epoch)]
+  wrapp.plot_results(range(0, epoch), losses, 'epoch', 'loss', 'decode')
 
 
 if __name__ == '__main__':
@@ -70,7 +72,7 @@ if __name__ == '__main__':
   batch_size  = 16           # sample sequences sent in parallel
   n_batches   = 64           # batches per epoch
   init_lr     = 2e-4         # first parameter to tune if does not work
-  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
+  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   decoder     = conv_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
-  train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=True)
+  train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

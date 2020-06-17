@@ -308,12 +308,14 @@ class Wrapper(tf.keras.Model):
     xr_frames = [tf.cast(255*xr[0,t], tf.uint8).numpy() for t in range(self.n_frames)]
     imageio.mimsave('./%s/latest_input_vs_prediction.gif' % (self.model_name), xr_frames, duration=0.1)
   
-  def plot_results(self, epochs, values, values_name, mode):
+  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode):
     plt.figure()
-    plt.ylabel(values_name)
-    plt.xlabel('Epoch')
-    plt.plot(range(0, int(epochs)), tf.squeeze(values)[:int(epochs)])
+    plt.ylabel(y_val_name)
+    plt.xlabel(x_val_name)
+    if x_vals[-1] > 1e3*x_vals[1]:
+      plt.xscale('log')
+    plt.plot(x_vals, y_vals)
     plt.grid()
-    plt.savefig('./%s/epoch_vs_%s_values_name.png' % (self.model_name, mode))
+    plt.savefig('./%s/%s_%s_vs_%s.png' % (self.model_name, mode, y_val_name, x_val_name))
     plt.show()
     plt.close()
