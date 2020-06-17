@@ -21,7 +21,7 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
   model_dir    = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
   decoder_dir  = '%s/%s/ckpt_decod' % (os.getcwd(), wrapp.model_name)
   ckpt_model   = tf.train.Checkpoint(net=wrapp.model)
-  ckpt_decoder = tf.train.Checkpoint(optimizer=optim, net=wrapp.decoder, loss=losses, acc=accs)
+  ckpt_decoder = tf.train.Checkpoint(optimizer=optim, net=wrapp.decoder, acc=accs)
   mngr_model   = tf.train.CheckpointManager(ckpt_model,   directory=model_dir,   max_to_keep=1)
   mngr_decoder = tf.train.CheckpointManager(ckpt_decoder, directory=decoder_dir, max_to_keep=1)
   ckpt_model  .restore(mngr_model  .latest_checkpoint)
