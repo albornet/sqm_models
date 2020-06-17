@@ -66,34 +66,10 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     losses.assign_add(tf.Variable(tf.cast(loss_tens, tf.float32)))
     accs.assign_add(tf.Variable(tf.cast(acc_tens, tf.float32)))
 
-  # Plot the accuracy vs epochs
-  plot_accuracy(tf.cast(optim.iterations, tf.float32).numpy()/n_batches, accs, wrapp.model_name)
-
-  # Plot the loss vs epochs
-  plot_loss(tf.cast(optim.iterations, tf.float32).numpy()/n_batches, accs, wrapp.model_name)
+  # Plot accuracies and losses vs epochs
+  wrapp.plot_results(tf.cast(optim.iterations, tf.float32).numpy()/n_batches, accs,   'accuracy', 'decode')
+  wrapp.plot_results(tf.cast(optim.iterations, tf.float32).numpy()/n_batches, losses, 'loss',     'decode')
   
-
-def plot_accuracy(epochs, accs, name):
-    plt.figure()
-    plt.ylabel("Accuracy")
-    plt.xlabel("Epoch")
-    plt.plot(range(0, int(epochs)), tf.squeeze(accs)[:int(epochs)])
-    plt.grid()
-    plt.savefig('./%s/accuracy_vs_epoch_decoder.png' % (name))
-    plt.show()
-    plt.close()
-
-def plot_loss(epochs, losses, name):
-    plt.figure()
-    plt.ylabel("Loss")
-    plt.xlabel("Epoch")
-    plt.plot(range(0, int(epochs)), tf.squeeze(losses)[:int(epochs)])
-    plt.grid()
-    plt.savefig('./%s/loss_vs_epoch_decoder.png' % (name))
-    plt.show()
-    plt.close()
-
-
 
 if __name__ == '__main__':
 
@@ -101,11 +77,11 @@ if __name__ == '__main__':
   n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 1)  # image dimensions
   n_frames    = 10           # frames in the input sequences
-  n_epochs    = 20          # epochs ran after latest checkpoint epoch
+  n_epochs    = 100          # epochs ran after latest checkpoint epoch
   batch_size  = 16           # sample sequences sent in parallel
   n_batches   = 64           # batches per epoch
   init_lr     = 1e-5         # first parameter to tune if does not work
-  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet1'
+  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
   decoder     = conv_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
-  train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)
+  train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=True)

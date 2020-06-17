@@ -235,7 +235,8 @@ class Wrapper(tf.keras.Model):
         recs.append(self.reconstructor(states[:,t]))
       return tf.stack(recs, axis=1)
   
-  def compute_rec_loss(self, x, recons):
+  def compute_rec_loss(self, x):
+    recons  = self.get_reconstructions(x)
     weights = [1.0/(n+1) for n in range(self.n_frames-1)]  # first frame cannot be predicted
     if isinstance(self.model, PredNet):                    # nth PredNet output predicts nth frame
       if self.model.t_extrapolate < float('inf'):
@@ -262,39 +263,36 @@ class Wrapper(tf.keras.Model):
 
   def train_step(self, x, b, opt, labels=None, layer_decod=-1):
 
-    # Train decoding
+    # Run and record decoding
     if labels is not None:
       with tf.GradientTape() as tape:
-        x         = tf.cast(x, tf.float32)
         lat_var   = self.model(x)[layer_decod]
         acc, loss = self.compute_dec_loss(labels, lat_var)
         to_train  = self.decoder.trainable_variables
-      grad = tape.gradient(loss, to_train)
-      opt.apply_gradients((zip(grad, to_train)))
-      if b == 0:
-        self.plot_output(x, self.get_reconstructions(x))
-      return acc, loss
       
-    # Train reconstruction
+    # Run and record reconstruction
     else:
       with tf.GradientTape() as tape:
-        x        = tf.cast(x, tf.float32)
-        recs     = self.get_reconstructions(x)
-        rec_loss = self.compute_rec_loss(x, recs)
+        loss = self.compute_rec_loss(x)
       if isinstance(self.model, PredNet):  # Prednet generates reconstructions itself
         to_train = self.model.trainable_variables
       else:
         to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
-      grad = tape.gradient(rec_loss, to_train)
-      opt.apply_gradients(zip(grad, to_train))
-      if b == 0:
-        self.plot_output(x, recs)
-      return rec_loss
+    
+    # Apply gradient descent and return results for monitoring
+    grad = tape.gradient(loss, to_train)
+    opt.apply_gradients(zip(grad, to_train))
+    if b == 0:
+      self.plot_recons(x)
+    if labels is not None:
+      return acc, loss
+    else:
+      return loss
  
-  def plot_output(self, x, r):
+  def plot_recons(self, x):
 
     # Plot frames
-    r = tf.clip_by_value(r, 0.0, 1.0)
+    r = tf.clip_by_value(self.get_reconstructions(x), 0.0, 1.0)
     f = plt.figure(figsize=(int(self.n_frames*(x.shape[3]+3)/32),int(2*(x.shape[2]+3)/32)))
     for t in range(self.n_frames):
       ax1 = f.add_subplot(2, self.n_frames+1, 0*(self.n_frames+1) + t + 1)
@@ -309,4 +307,13 @@ class Wrapper(tf.keras.Model):
     xr        = tf.concat((x, template, r), axis=3)
     xr_frames = [tf.cast(255*xr[0,t], tf.uint8).numpy() for t in range(self.n_frames)]
     imageio.mimsave('./%s/latest_input_vs_prediction.gif' % (self.model_name), xr_frames, duration=0.1)
-    
+  
+  def plot_results(self, epochs, values, values_name, mode):
+    plt.figure()
+    plt.ylabel(values_name)
+    plt.xlabel('Epoch')
+    plt.plot(range(0, int(epochs)), tf.squeeze(values)[:int(epochs)])
+    plt.grid()
+    plt.savefig('./%s/epoch_vs_%s_values_name.png' % (self.model_name, mode))
+    plt.show()
+    plt.close()

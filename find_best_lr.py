@@ -11,30 +11,16 @@ from dataset import BatchMaker
 from models  import *
 
 
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-
-    def __init__(self, n_samples, init_lr, stop_lr):
-        super(CustomSchedule, self).__init__()
-        init_exp = np.log10(init_lr)
-        stop_exp = np.log10(stop_lr)
-        self.predef_lrs = np.logspace(init_exp, stop_exp, n_samples)
-    def __call__(self, step):
-        return self.predef_lrs[int(step)-1]
-
-
 def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', custom=True, from_scratch=False):
   
   # Simulation parameters
-  n_samples = 200   # how many lrs are tried
+  n_samples = 100   # how many lrs are tried
   init_lr   = 1e-7  # smallest lr tried
   stop_lr   = 1e-0  # largest lr tried
 
   # Learning devices
-  if custom:
-    scheduler = CustomSchedule(n_samples, init_lr, stop_lr)
-  else:
-    decay_rate = stop_lr/init_lr
-    scheduler  = tf.keras.optimizers.schedules.ExponentialDecay(
+  decay_rate = stop_lr/init_lr
+  scheduler  = tf.keras.optimizers.schedules.ExponentialDecay(
     init_lr, n_samples, decay_rate, staircase=False, name=None)
   optim = tf.keras.optimizers.Adam(scheduler)
 
@@ -51,7 +37,9 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
       ckpt_decoder = tf.train.Checkpoint(net=wrapp.decoder)
       mngr_decoder = tf.train.CheckpointManager(ckpt_decoder, directory=decoder_dir, max_to_keep=1)
       ckpt_decoder.restore(mngr_decoder.latest_checkpoint)
-  
+  if not os.path.exists('./%s' % (wrapp.model_name,)):
+    os.mkdir('./%s' % (wrapp.model_name,))
+
   # Run batches with increasing learning rates
   batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
   lrs         = []
@@ -98,13 +86,13 @@ def plot_output(lrs, losses, name):
 if __name__ == '__main__':
 
   obj_type    = 'neil'       # can be 'ball' or 'neil' for now
-  train_mode  = 'decode'     # can be 'recons' or 'decode'
+  train_mode  = 'recons'     # can be 'recons' or 'decode'
   n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 1)  # image dimensions
   n_frames    = 10           # frames in the input sequences
   batch_size  = 16           # sample sequences sent in parallel
-  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet1'
-  decoder     = my_try_decoder()
+  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
+  decoder     = conv_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
   init_lr     = find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode=train_mode, custom=False, from_scratch=True)
   
