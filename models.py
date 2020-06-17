@@ -22,15 +22,16 @@ my_recons = tf.keras.Sequential(
 ################
 
 # Simple linear decoder
-my_decoder = tf.keras.Sequential(
+def simple_decoder():
+  return tf.keras.Sequential(
     [tf.keras.layers.Flatten(),
      tf.keras.layers.BatchNormalization(),
      tf.keras.layers.Dense(512, activation='relu'   ),
      tf.keras.layers.Dense(  2, activation='softmax')])
 
-
 # Simple fully convolutional decoder
-my_fully_conv_decoder = tf.keras.Sequential(
+def fully_conv_decoder():
+  return tf.keras.Sequential(
     [tf.keras.layers.Conv2D(512, (1,1), strides=(1,1), padding='same', activation='relu'),
      tf.keras.layers.BatchNormalization(),
      tf.keras.layers.Conv2D(2, (1,1), strides=(1,1), padding='same', activation='relu'),
@@ -38,9 +39,9 @@ my_fully_conv_decoder = tf.keras.Sequential(
      tf.keras.layers.GlobalAveragePooling2D(),
      tf.keras.layers.Softmax()])
 
-
 # All-convolutional decoder with "pooling-like" convolutional layers
-all_cnn_decoder = tf.keras.Sequential(
+def all_cnn_decoder():
+  return tf.keras.Sequential(
     [tf.keras.layers.BatchNormalization(),
      tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
      tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
@@ -51,10 +52,16 @@ all_cnn_decoder = tf.keras.Sequential(
      tf.keras.layers.Conv2D(512, (5,5), strides=(2,2), padding='same', activation='relu'),
      tf.keras.layers.BatchNormalization(),
      tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(2, (1,1), strides=(1,1), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(  2, (1,1), strides=(1,1), padding='same', activation='relu'),
      tf.keras.layers.GlobalAveragePooling2D(),
      tf.keras.layers.Softmax()])
 
+# My try
+def conv_decoder():
+  return tf.keras.Sequential(
+    [tf.keras.layers.Conv2D(32, (2,2), strides=(2,2), padding='same', activation='relu'   ),
+     tf.keras.layers.Conv2D( 8, (2,2), strides=(2,2), padding='same', activation='relu'   ),
+     tf.keras.layers.Conv2D( 2, (2,2), strides=(2,2), padding='same', activation='softmax')])
 
 
 ###################
@@ -246,7 +253,7 @@ class Wrapper(tf.keras.Model):
     losses    = tf.zeros(labels.shape)
     accurs    = 0.0
     for t in range(self.n_frames):
-      decoding = self.decoder(lat_var[:, t])
+      decoding = tf.squeeze(self.decoder(lat_var[:, t]))
       losses  += weights[t]*criterion(targets, decoding)
       self.accuracy.update_state(labels, tf.argmax(decoding, 1))
       accurs  += self.accuracy.result()
@@ -302,3 +309,4 @@ class Wrapper(tf.keras.Model):
     xr        = tf.concat((x, template, r), axis=3)
     xr_frames = [tf.cast(255*xr[0,t], tf.uint8).numpy() for t in range(self.n_frames)]
     imageio.mimsave('./%s/latest_input_vs_prediction.gif' % (self.model_name), xr_frames, duration=0.1)
+    
