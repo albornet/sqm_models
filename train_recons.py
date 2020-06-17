@@ -16,7 +16,7 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
   optim = tf.keras.optimizers.Adam(sched)
 
   # To store the losses 
-  losses = tf.Variable(tf.zeros((1000,1)))
+  losses = tf.Variable(tf.zeros((100,)))
   # Checkpoint (save and load model weights and losses)
   model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
   ckpt_model = tf.train.Checkpoint(optimizer=optim, net=wrapp.model, loss=losses)
@@ -33,33 +33,33 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     print('\nModel %s initialized from scratch' % (wrapp.model_name))
     if not os.path.exists('./%s' % (wrapp.model_name,)):
       os.mkdir('./%s' % (wrapp.model_name,))
-
   # Training loop for the reconstruction part
   batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
+  losses_ = np.zeros(10)
+  saved_epochs = (optim.iterations/n_batches)%10
   for e in range(n_epochs):
     # Mean batch loss
     mean_loss = 0.0
-    loss_tens = np.zeros((1000,1))
-    opt_e = optim.iterations/n_batches
-    if opt_e % 10 == 0 and e > 0:
+    if e % 10 == 0 and e > 0:
+      saved_epochs += 1
+      loss_tens = tf.concat([tf.zeros((saved_epochs-1,)), tf.constant([np.mean(losses_)], shape=(1,), dtype='float32'), tf.zeros((100-saved_epochs,))], axis=0)
+      losses.assign_add(tf.Variable(loss_tens))
       mngr_model.save()
       print('\nCheckpoint saved at %s' % (mngr_model.latest_checkpoint,))
+      losses_ = np.zeros(10)
     for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
       batch = tf.stack(batch_maker.generate_batch(), axis=1)/255
       rec_loss = wrapp.train_step(batch, b, optim)
       mean_loss += rec_loss
       if b == 0:
         lr_str = "{:.2e}".format(optim._decayed_lr(tf.float32).numpy())
-        print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (opt_e, lr_str, rec_loss))
+        print('\nStarting epoch %03i, lr = %s, rec loss = %.3f' % (e, lr_str, rec_loss))
       print('\r  Running batch %02i/%2i' % (b+1, n_batches), end='')
-    loss_tens[e,:] = mean_loss/n_batches
-    # Mean epoch loss
-    losses.assign_add(tf.Variable(tf.cast(loss_tens, tf.float32)))
+    losses_[e%10] = mean_loss
 
   # Plot the loss vs epochs
-  epoch  = int(tf.cast(optim.iterations, tf.float32).numpy()/n_batches)
-  losses = tf.squeeze(losses)[:int(epoch)]
-  wrapp.plot_results(range(0, epoch), losses, 'epoch', 'loss', 'decode')
+  if saved_epochs > 1:
+    wrapp.plot_results(np.arange(0, saved_epochs*10, 10), losses.numpy()[:saved_epochs], 'saved epoch', 'loss', 'recons')
 
 
 if __name__ == '__main__':

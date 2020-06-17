@@ -16,7 +16,6 @@ my_recons = tf.keras.Sequential(
      tf.keras.layers.Conv2DTranspose( 4, (5,5), strides=(2,2), padding='same', activation='relu'),
      tf.keras.layers.Conv2DTranspose( 1, (5,5), strides=(2,2), padding='same', activation='relu')])
 
-
 ################
 ### Decoders ###
 ################
@@ -30,7 +29,7 @@ def simple_decoder():
      tf.keras.layers.Dense(  2, activation='softmax')])
 
 # Simple fully convolutional decoder
-def fully_conv_decoder():
+def my_fully_conv_decoder():
   return tf.keras.Sequential(
     [tf.keras.layers.Conv2D(512, (1,1), strides=(1,1), padding='same', activation='relu'),
      tf.keras.layers.BatchNormalization(),
@@ -39,22 +38,14 @@ def fully_conv_decoder():
      tf.keras.layers.GlobalAveragePooling2D(),
      tf.keras.layers.Softmax()])
 
-# All-convolutional decoder with "pooling-like" convolutional layers
+# All-convolutional decoder 
 def all_cnn_decoder():
   return tf.keras.Sequential(
     [tf.keras.layers.BatchNormalization(),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(2,2), padding='same', activation='relu'),
-     tf.keras.layers.BatchNormalization(),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(2,2), padding='same', activation='relu'),
-     tf.keras.layers.BatchNormalization(),
-     tf.keras.layers.Conv2D(512, (5,5), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.Conv2D(  2, (1,1), strides=(1,1), padding='same', activation='relu'),
-     tf.keras.layers.GlobalAveragePooling2D(),
-     tf.keras.layers.Softmax()])
+     tf.keras.layers.Conv2D(128, (2,2), strides=(2,2), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(32, (2,2), strides=(2,2), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(8, (2,2), strides=(2,2), padding='same', activation='relu'),
+     tf.keras.layers.Conv2D(2, (2,2), strides=(2,2), padding='same', activation='softmax')])
 
 # My try
 def conv_decoder():
@@ -62,7 +53,6 @@ def conv_decoder():
     [tf.keras.layers.Conv2D(32, (2,2), strides=(2,2), padding='same', activation='relu'   ),
      tf.keras.layers.Conv2D( 8, (2,2), strides=(2,2), padding='same', activation='relu'   ),
      tf.keras.layers.Conv2D( 2, (2,2), strides=(2,2), padding='same', activation='softmax')])
-
 
 ###################
 ### Core models ###
