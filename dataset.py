@@ -259,7 +259,7 @@ class SQM(Neil):
 		self.pos = np.vstack((x,   y))
 		# Set the velocity sign in function of the relative position of the line
 		if self.side == 0:
-			vx = 1*scale*np.ones((1, batch_s)) # for the moment (to adapt with the number of frames or code something to return at the center of the window)
+			vx = 1*scale*np.ones((1, batch_s)) # for the moment 
 		else:
 			vx = -1*scale*np.ones((1, batch_s))
 		vy = np.zeros((1, batch_s))

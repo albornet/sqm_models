@@ -47,9 +47,9 @@ def test_sqm(wrapp, obj_type, n_objs, im_dims, batch_size, n_batches, condition,
     mean_acc     = mean_acc /n_batches
     losses[try_] = mean_loss
     accs[try_]   = mean_acc
-    print('\rRunning try %03i, mean batch accuracy = %.3f, mean batch loss = %.3f' % (try_, mean_acc, mean_loss), end='')
+    print('\nRunning try %03i, mean batch accuracy = %.3f, mean batch loss = %.3f' % (try_, mean_acc, mean_loss))
   
-  print('\rMean try accuracy = %.3f, mean try loss = %.3f' % (np.mean(losses), np.mean(accs)), end='')
+  print('\nMean try accuracy = %.3f, mean try loss = %.3f' % (np.mean(accs), np.mean(losses)))
 
 
 
