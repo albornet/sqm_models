@@ -187,7 +187,7 @@ class Neil():
 			# 	rr, cc = polygon(...)
 			
 			if self.shape[0, b] == 'vernier':
-				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b] 
+				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b]
 				v_siz_w  = rng().uniform(1 + self.sizx[0, b]//6, 1 + self.sizx[0, b]//2) 
 				v_siz_h  = rng().uniform(1 + self.sizy[0, b]//4, 1 + self.sizy[0, b]//2) 
 				v_off_w  = rng().uniform(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2 
@@ -233,26 +233,29 @@ class Neil():
 class SQM(Neil):
 	# Initialize object's properties
 	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav, condition, side):
+		
 		super().__init__(set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav)
 	
-		self.ori   = np.zeros((1, batch_s)) 
-		self.colr = 150*np.ones((n_chans, batch_s))
-		self.sizx  = wn_w/10*np.ones((1,       batch_s))
-		self.sizy  = wn_w/3*np.ones((1,       batch_s))
+		self.ori       = np.zeros((1, batch_s)) 
+		self.colr      = 150*np.ones((n_chans, batch_s))
+		self.sizx      = wn_w/10*np.ones((1,       batch_s))
+		self.sizy      = wn_w/3*np.ones((1,       batch_s))
 
 		self.condition = condition
-		self.side = side # 0 for the right line and 1 for the left one
-		self.vside = rng().randint(0, 2,       (1, batch_s))
+		self.side      = side # 0 for the right line and 1 for the left one
+		self.vside     = rng().randint(0, 2,       (1, batch_s))
+
 		if self.condition == 'V' or self.condition == 'V-AV' or self.condition == 'V-PV':
-			if self.side == 0: # Flip juste one of the 2 lines for the vernier in the first frame
+			if self.side == 0: # Flip juste one of the 2 lines for the vernier in the first frame (here the right line)
 				self.generate_patches(True) 
 			else:
 				self.generate_patches(False)
 		else: 
 			self.generate_patches(False)
 		
-		x = wn_w/2*np.ones((1, batch_s)) 
-		y = wn_h/2*np.ones((1, batch_s))
+
+		x        = wn_w/2*np.ones((1, batch_s)) 
+		y        = wn_h/2*np.ones((1, batch_s))
 		self.pos = np.vstack((x,   y))
 		# Set the velocity sign in function of the relative position of the line
 		if self.side == 0:
@@ -266,9 +269,9 @@ class SQM(Neil):
 	# Generate patches to draw the shapes efficiently
 	def generate_patches(self, offset = False):
 		self.patches = []
-		for b in range(batch_s):
-			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
-			patch = np.zeros((max_s, max_s))
+		for b in range(len(self.vside[0])): # corresponds to the number of batches
+			max_s    = int(2*max(self.sizx[0, b], self.sizy[0, b]))
+			patch    = np.zeros((max_s, max_s))
 			v_siz_w  = self.sizx[0, b]//4 
 			v_siz_h  = self.sizy[0, b]
 			# Generate the horizontal offset if the offset condition is True
@@ -373,7 +376,17 @@ class BatchMaker():
 			for obj in self.objects:
 				obj.update_states(self.batch_s, self.friction, self.gravity)
 			self.batch.append(frame)
-		return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
+		if self.set_type == 'recons':
+			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
+		else:
+			if isinstance(obj, SQM): # the vernier correspond to the flanking of the right lines (ie object[0]) for the moment
+				if self.condition == 'V-AV':
+					return self.batch, np.logical_not(self.objects[0].vside[0]).astype(int)
+				else:
+					return self.batch, self.objects[0].vside[0] 
+			else:
+				return self.batch, self.objects[0].vside[0]  # verniers share same offset in each sequence
+
 
 
 # Show example of reconstruction batch
@@ -382,7 +395,7 @@ if __name__ == '__main__':
   import pyglet   # conda install -c conda-forge pyglet
   import imageio  # conda install -c conda-forge imageio
   import os
-  object_type  = 'neil'
+  object_type  = 'sqm'
   set_type     = 'decode'
   condition    = 'V-AV'
   n_objects    = 2
@@ -390,10 +403,11 @@ if __name__ == '__main__':
   scale        = 2
   batch_s      = 4
   n_channels   = 3
-  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, 1))
+  #batch_maker = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, 1))
+  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, 1), condition)
 
   gif_name        = 'test_output.gif'
-  batch_frames = batch_maker.generate_batch()
+  batch_frames, labels = batch_maker.generate_batch()
   display_frames  = []
   for t in range(n_frames):
   	display_frames.append(np.hstack([batch_frames[t][b] for b in range(batch_s)]))
