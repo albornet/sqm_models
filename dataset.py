@@ -164,11 +164,9 @@ class Neil():
 		self.pos = np.vstack((x,   y))
 		self.vel = np.vstack((vx, vy))
 		self.acc = np.array([[0.00]*batch_s, [grav]*batch_s])
-		self.patches = self.generate_patches(set_type, batch_s)
 	
-	# Generate patches to draw the shapes efficiently
-	def generate_patches(self, set_type, batch_s):
-		patches = []
+		# Generate patches to draw the shapes efficiently
+		self.patches = []
 		for b in range(batch_s):
 			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
 			patch = np.zeros((max_s, max_s))
@@ -200,8 +198,8 @@ class Neil():
 				patch[rr2, cc2] = 255
 				if vside:  # 0 is R vernier and 1 is L vernier 
 					patch = np.fliplr(patch) 
-			patches.append(rotate(patch, self.ori[0, b]).astype(int))
-		return patches
+			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
+
 		
 
 	# Compute what must be updated between the frames
@@ -234,7 +232,7 @@ class SQM(Neil):
 	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav, condition, side):
 		
 		super().__init__(set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav)
-	
+		
 		self.ori       = np.zeros((1, batch_s)) 
 		self.colr      = 150*np.ones((n_chans, batch_s))
 		self.sizx      = wn_w/10*np.ones((1,       batch_s))
@@ -243,7 +241,6 @@ class SQM(Neil):
 		self.condition = condition
 		self.side      = side # 0 for the right line and 1 for the left one
 		self.vside     = rng().randint(0, 2,       (1, batch_s))
-
 		if self.condition == 'V' or self.condition == 'V-AV' or self.condition == 'V-PV':
 			if self.side == 0: # Flip juste one of the 2 lines for the vernier in the first frame (here the right line)
 				self.generate_patches(True) 
@@ -378,11 +375,8 @@ class BatchMaker():
 		if self.set_type == 'recons':
 			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
 		else:
-			if isinstance(obj, SQM): # the vernier correspond to the flanking of the right lines (ie object[0]) for the moment
-				if self.condition == 'V-AV':
-					return self.batch, np.logical_not(self.objects[0].vside[0]).astype(int)
-				else:
-					return self.batch, self.objects[0].vside[0] 
+			if isinstance(obj, SQM) and self.condition == 'V-AV': # the vernier correspond to the flanking of the right lines (ie object[0]) for the moment
+				return self.batch, np.logical_not(self.objects[0].vside[0]).astype(int) # invert the labels if V-AV condition
 			else:
 				return self.batch, self.objects[0].vside[0]  # verniers share same offset in each sequence
 
