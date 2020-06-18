@@ -166,10 +166,10 @@ class Neil():
 		self.pos = np.vstack((x,   y))
 		self.vel = np.vstack((vx, vy))
 		self.acc = np.array([[0.00]*batch_s, [grav]*batch_s])
-		self.patches = self.generate_patches()
+		self.patches = self.generate_patches(set_type)
 	
 	# Generate patches to draw the shapes efficiently
-	def generate_patches(self):
+	def generate_patches(self, set_type):
 		patches = []
 		for b in range(self.batch_s):
 			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
