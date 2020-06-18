@@ -40,16 +40,16 @@ def test_sqm(wrapp, obj_type, n_objs, im_dims, batch_size, n_batches, condition,
     mean_acc  = 0.0
     for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
       batch, labels = batch_maker.generate_batch()
-      acc, loss  = wrapp.test_step(tf.stack(batch, axis=1)/255, b, labels, -1)
+      acc, loss  = wrapp.test_step(tf.stack(batch, axis=1)/255, labels, -1)
       mean_loss += loss
       mean_acc  += acc
     mean_loss    = mean_loss/n_batches
     mean_acc     = mean_acc /n_batches
     losses[try_] = mean_loss
     accs[try_]   = mean_acc
-    print('\nRunning try %03i, mean batch accuracy = %.3f, mean batch loss = %.3f' % (try_, mean_acc, mean_loss))
+    print('\rRunning try %03i, mean batch accuracy = %.3f, mean batch loss = %.3f' % (try_, mean_acc, mean_loss), end='')
   
-  print('\nMean try accuracy = %.3f, mean try loss = %.3f' % (np.mean(accs), np.mean(losses)))
+  print('\n  Mean try accuracy = %.3f, mean try loss = %.3f' % (np.mean(accs), np.mean(losses)))
 
 
 

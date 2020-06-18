@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import matplotlib.pyplot as plt
 import imageio
 
@@ -274,10 +275,18 @@ class Wrapper(tf.keras.Model):
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
       self.plot_recons(x)
+      self.plot_lat_vars_state(x)
     if labels is not None:
       return acc, loss
     else:
       return loss
+    
+
+  def test_step(self, x, labels, layer_decod=-1):
+    lat_var   = self.model(x)[layer_decod]
+    acc, loss = self.compute_dec_loss(labels, lat_var)
+    return acc, loss
+
  
   def plot_recons(self, x):
 
@@ -309,3 +318,13 @@ class Wrapper(tf.keras.Model):
     plt.savefig('./%s/%s_%s_vs_%s.png' % (self.model_name, mode, y_val_name, x_val_name))
     plt.show()
     plt.close()
+  
+  def plot_lat_vars_state(self, x):
+    fig, axes = plt.subplots(self.model.n_layers, 1, figsize=(8, 14))
+    lat_vars = self.model(x)
+    for layer in range(self.model.n_layers): # plot aussi la reconstruction même si on s'en fout un peu
+      print(np.mean(np.mean(np.mean(np.mean(lat_vars[layer].numpy(), axis = -1), axis = -1), axis = -1), axis = 0))
+      axes[layer].plot(range(self.n_frames), np.mean(np.mean(np.mean(np.mean(lat_vars[layer].numpy(), axis = -1), axis = -1), axis = -1), axis = 0)) # tout moche
+      axes[layer].set(xlabel = 'Frames', ylabel = 'Layer ' + str(layer))
+    fig.savefig('./%s/lat_vars_vs_frams.png' % (self.model_name))
+    fig.show()
