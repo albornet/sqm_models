@@ -274,10 +274,9 @@ class SQM(Neil):
 			# Generate the horizontal offset if the offset condition is True
 			if offset:
 				v_off_w  = 1 + (self.sizx[0, b] - v_siz_w)//2 
-				v_off_h  = self.sizy[0, b] 
 			else:
 				v_off_w = 0
-				v_off_h =  self.sizy[0, b] 
+			v_off_h  = self.sizy[0, b]
 			start1   = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - v_off_w - v_siz_w)//2)) 
 			start2   = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + v_off_w - v_siz_w)//2))
 			extent   = (int(v_siz_h), int(v_siz_w))
