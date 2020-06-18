@@ -165,9 +165,11 @@ class Neil():
 		self.pos = np.vstack((x,   y))
 		self.vel = np.vstack((vx, vy))
 		self.acc = np.array([[0.00]*batch_s, [grav]*batch_s])
-
-		# Generate patches to draw the shapes efficiently
-		self.patches = []
+		self.patches = self.generate_patches()
+	
+	# Generate patches to draw the shapes efficiently
+	def generate_patches(self):
+		patches = []
 		for b in range(batch_s):
 			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
 			patch = np.zeros((max_s, max_s))
@@ -183,12 +185,13 @@ class Neil():
 				patch[rr, cc] = 255
 			# if self.shape == 'triangle':
 			# 	rr, cc = polygon(...)
+			
 			if self.shape[0, b] == 'vernier':
-				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b]
-				v_siz_w  = rng().uniform(1 + self.sizx[0, b]//6, 1 + self.sizx[0, b]//2)
-				v_siz_h  = rng().uniform(1 + self.sizy[0, b]//4, 1 + self.sizy[0, b]//2)
-				v_off_w  = rng().uniform(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2
-				v_off_h  = rng().uniform(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2
+				vside    = rng().randint(0, 2) if set_type == 'recons' else self.vside[0, b] 
+				v_siz_w  = rng().uniform(1 + self.sizx[0, b]//6, 1 + self.sizx[0, b]//2) 
+				v_siz_h  = rng().uniform(1 + self.sizy[0, b]//4, 1 + self.sizy[0, b]//2) 
+				v_off_w  = rng().uniform(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2 
+				v_off_h  = rng().uniform(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2 
 				start1   = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - v_off_w - v_siz_w)//2))
 				start2   = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + v_off_w - v_siz_w)//2))
 				extent   = (int(v_siz_h), int(v_siz_w))
@@ -196,12 +199,14 @@ class Neil():
 				rr2, cc2 = rectangle(start=start2, extent=extent, shape=patch.shape)
 				patch[rr1, cc1] = 255
 				patch[rr2, cc2] = 255
-				if vside:  # 0 is R vernier and 1 is L vernier
-					patch = np.fliplr(patch)
-			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
+				if vside:  # 0 is R vernier and 1 is L vernier 
+					patch = np.fliplr(patch) 
+			patches.append(rotate(patch, self.ori[0, b]).astype(int))
+		return patches
+		
 
 	# Compute what must be updated between the frames
-	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d):
+	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d, t):
 		pass
 
 	# Draw the object (square patch)
@@ -225,17 +230,106 @@ class Neil():
 		self.pos += self.vel
 
 
+class SQM(Neil):
+	# Initialize object's properties
+	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav, condition, side):
+		super().__init__(set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav)
+	
+		self.ori   = np.zeros((1, batch_s)) 
+		self.colr = 150*np.ones((n_chans, batch_s))
+		self.sizx  = wn_w/10*np.ones((1,       batch_s))
+		self.sizy  = wn_w/3*np.ones((1,       batch_s))
+
+		self.condition = condition
+		self.side = side # 0 for the right line and 1 for the left one
+		self.vside = rng().randint(0, 2,       (1, batch_s))
+		if self.condition == 'V' or self.condition == 'V-AV' or self.condition == 'V-PV':
+			if self.side == 0: # Flip juste one of the 2 lines for the vernier in the first frame
+				self.generate_patches(True) 
+			else:
+				self.generate_patches(False)
+		else: 
+			self.generate_patches(False)
+		
+		x = wn_w/2*np.ones((1, batch_s)) 
+		y = wn_h/2*np.ones((1, batch_s))
+		self.pos = np.vstack((x,   y))
+		# Set the velocity sign in function of the relative position of the line
+		if self.side == 0:
+			vx = 1*scale*np.ones((1, batch_s)) # for the moment (to adapt with the number of frames or code something to return at the center of the window)
+		else:
+			vx = -1*scale*np.ones((1, batch_s))
+		vy = np.zeros((1, batch_s))
+		self.vel = np.vstack((vx, vy))
+		self.acc = np.array([[0.00]*batch_s, [0.00]*batch_s]) 
+	
+	# Generate patches to draw the shapes efficiently
+	def generate_patches(self, offset = False):
+		self.patches = []
+		for b in range(batch_s):
+			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
+			patch = np.zeros((max_s, max_s))
+			v_siz_w  = self.sizx[0, b]//4 
+			v_siz_h  = self.sizy[0, b]
+			# Generate the horizontal offset if the offset condition is True
+			if offset:
+				v_off_w  = 1 + (self.sizx[0, b] - v_siz_w)//2 
+				v_off_h  = self.sizy[0, b] 
+			else:
+				v_off_w = 0
+				v_off_h =  self.sizy[0, b] 
+			start1   = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - v_off_w - v_siz_w)//2)) 
+			start2   = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + v_off_w - v_siz_w)//2))
+			extent   = (int(v_siz_h), int(v_siz_w))
+			rr1, cc1 = rectangle(start=start1, extent=extent, shape=patch.shape)
+			rr2, cc2 = rectangle(start=start2, extent=extent, shape=patch.shape)
+			patch[rr1, cc1] = 255
+			patch[rr2, cc2] = 255
+			if offset and self.vside[0, b]: # 0 is R vernier and 1 is L vernier 
+				patch = np.fliplr(patch) 
+			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
+	
+	# Invert the offset direction (for the vernier-antivernier condition V-AV)
+	def inv_offset(self):
+		for i, vside in enumerate(self.vside[0]):
+			if vside == 1:
+				self.vside[0, i] = 0
+			else:
+				self.vside[0, i] = 1
+
+	# Compute what must be updated between the frames
+	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d, t):
+		# After the first frame, reset the configuration to no visible offset anymore
+		if t == 1:
+			self.generate_patches(False)
+		# At the 5'th frame, generate an offset in the V-AV and V-PV conditions
+		if t == 4:
+			if self.condition == 'V-AV':
+				if self.side == 0:
+					self.inv_offset()
+					self.generate_patches(True)	
+			if self.condition == 'V-PV':
+				if self.side == 0:
+					self.generate_patches(True)
+		# After the offset of frame 5, reset the configuration to no visible offset again
+		if t == 5:
+			self.generate_patches(False)
+		pass
+
+
 # Class to generate batches of bouncing balls
 class BatchMaker():
 
 	# Initiates all values unchanged from batch to batch
-	def __init__(self, set_type, object_type, n_objects, batch_s, n_frames, im_dims):
+	def __init__(self, set_type, object_type, n_objects, batch_s, n_frames, im_dims, condition = None):
 		object_dict = {
 		  'ball': {'generator': Ball, 'gravity': 1.00, 'wall_d': 4, 'friction': 0.01},
-		  'neil': {'generator': Neil, 'gravity': 0.00, 'wall_d': 0, 'friction': 0.00}}
+		  'neil': {'generator': Neil, 'gravity': 0.00, 'wall_d': 0, 'friction': 0.00},
+		  'sqm': {'generator': SQM, 'gravity': 0.00, 'wall_d': 0, 'friction': 0.00}}
 		object_descr   = object_dict[object_type]
 		self.Object    = object_descr['generator']
 		self.n_objects = n_objects
+		self.condition = condition
 		self.batch_s   = batch_s
 		self.n_frames  = n_frames
 		self.n_chans   = im_dims[-1]
@@ -252,9 +346,14 @@ class BatchMaker():
 		self.batch   = []
 		self.objects = []
 		self.window  = 127*np.ones((self.batch_s, self.wn_h, self.wn_w, self.n_chans), dtype=np.uint8)
+		
 		for _ in range(self.n_objects):
-			self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
-			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity))
+			if (self.Object == SQM):
+				self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
+			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity, self.condition, _))
+			else:
+				self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
+			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity, self.condition))
 		self.bg_color = rng().randint(0, 80, (self.batch_s, self.n_chans))
 		for b in range(self.batch_s):
 			for c in range(self.n_chans):
@@ -266,16 +365,16 @@ class BatchMaker():
 		for t in range(self.n_frames):
 			frame = self.window*1
 			for i, obj in enumerate(self.objects):
-				obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d)
+				if isinstance(obj, SQM):
+					obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d, t)
+				else:
+					obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d)
 			for obj in self.objects:
 				obj.draw(frame, self.batch_s)
 			for obj in self.objects:
 				obj.update_states(self.batch_s, self.friction, self.gravity)
 			self.batch.append(frame)
-		if self.set_type == 'recons':
-			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
-		else:
-			return self.batch, self.objects[0].vside[0]  # verniers share same offset in each sequence
+		return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
 
 
 # Show example of reconstruction batch
@@ -284,17 +383,18 @@ if __name__ == '__main__':
   import pyglet   # conda install -c conda-forge pyglet
   import imageio  # conda install -c conda-forge imageio
   import os
-  object_type  = 'neil'
+  object_type  = 'sqm'
   set_type     = 'decode'
+  condition    = 'V-AV'
   n_objects    = 2
-  n_frames     = 20
+  n_frames     = 10
   scale        = 2
   batch_s      = 4
   n_channels   = 3
-  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, n_channels))
-  
+  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, n_channels), condition)
+
   gif_name        = 'test_output.gif'
-  batch_frames, _ = batch_maker.generate_batch()
+  batch_frames = batch_maker.generate_batch()
   display_frames  = []
   for t in range(n_frames):
   	display_frames.append(np.hstack([batch_frames[t][b] for b in range(batch_s)]))
