@@ -206,7 +206,7 @@ class Neil():
 		
 
 	# Compute what must be updated between the frames
-	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d, t):
+	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d):
 		pass
 
 	# Draw the object (square patch)
@@ -352,7 +352,7 @@ class BatchMaker():
 			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity, self.condition, _))
 			else:
 				self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
-			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity, self.condition))
+			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity))
 		self.bg_color = rng().randint(0, 80, (self.batch_s, self.n_chans))
 		for b in range(self.batch_s):
 			for c in range(self.n_chans):
@@ -382,7 +382,7 @@ if __name__ == '__main__':
   import pyglet   # conda install -c conda-forge pyglet
   import imageio  # conda install -c conda-forge imageio
   import os
-  object_type  = 'sqm'
+  object_type  = 'neil'
   set_type     = 'decode'
   condition    = 'V-AV'
   n_objects    = 2
@@ -390,7 +390,7 @@ if __name__ == '__main__':
   scale        = 2
   batch_s      = 4
   n_channels   = 3
-  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, n_channels), condition)
+  batch_maker  = BatchMaker(set_type, object_type, n_objects, batch_s, n_frames, (64*scale, 64*scale, 1))
 
   gif_name        = 'test_output.gif'
   batch_frames = batch_maker.generate_batch()
