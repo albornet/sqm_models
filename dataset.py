@@ -171,7 +171,7 @@ class Neil():
 	# Generate patches to draw the shapes efficiently
 	def generate_patches(self):
 		patches = []
-		for b in range(batch_s):
+		for b in range(self.batch_s):
 			max_s = int(2*max(self.sizx[0, b], self.sizy[0, b]))
 			patch = np.zeros((max_s, max_s))
 			if self.shape[0, b] == 'ellipse':
