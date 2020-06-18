@@ -141,6 +141,7 @@ class Neil():
 	# Initialize object's properties
 	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav):
 
+		self.batch_s = batch_s # Pour le moment, pas ouf
 		# Select id, color, sizes, orientations, etc.
 		if set_type == 'recons':
 			#choices    = ['rectangle', 'ellipse', 'vernier']
@@ -269,7 +270,7 @@ class SQM(Neil):
 	# Generate patches to draw the shapes efficiently
 	def generate_patches(self, offset = False):
 		self.patches = []
-		for b in range(len(self.vside[0])): # corresponds to the number of batches
+		for b in range(self.batch_s):
 			max_s    = int(2*max(self.sizx[0, b], self.sizy[0, b]))
 			patch    = np.zeros((max_s, max_s))
 			v_siz_w  = self.sizx[0, b]//4 
