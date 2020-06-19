@@ -319,12 +319,3 @@ class Wrapper(tf.keras.Model):
     plt.show()
     plt.close()
   
-  def plot_lat_vars_state(self, x):
-    fig, axes = plt.subplots(self.model.n_layers, 1, figsize=(8, 14))
-    lat_vars = self.model(x)
-    for layer in range(self.model.n_layers): # plot aussi la reconstruction même si on s'en fout un peu
-      print(np.mean(np.mean(np.mean(np.mean(lat_vars[layer].numpy(), axis = -1), axis = -1), axis = -1), axis = 0))
-      axes[layer].plot(range(self.n_frames), np.mean(np.mean(np.mean(np.mean(lat_vars[layer].numpy(), axis = -1), axis = -1), axis = -1), axis = 0)) # tout moche
-      axes[layer].set(xlabel = 'Frames', ylabel = 'Layer ' + str(layer))
-    fig.savefig('./%s/lat_vars_vs_frams.png' % (self.model_name))
-    fig.show()
