@@ -272,7 +272,8 @@ class SQM(Neil):
 			v_siz_h  = self.sizy[0, b]
 			# Generate the horizontal offset if the offset condition is True
 			if offset:
-				v_off_w  = 1 + (self.sizx[0, b] - v_siz_w)//2 
+				#v_off_w  = 2* (1 + (self.sizx[0, b] - v_siz_w)//2)
+				v_off_w = 1 + (self.sizx[0, b] - v_siz_w)//2
 			else:
 				v_off_w = 0
 			v_off_h  = self.sizy[0, b]
@@ -298,7 +299,7 @@ class SQM(Neil):
 	# Compute what must be updated between the frames
 	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d, t):
 		# After the first frame, reset the configuration to no visible offset anymore
-		if t == 1:
+		if t == 2:
 			self.generate_patches(False)
 		# At the 5'th frame, generate an offset in the V-AV and V-PV conditions
 		if t == 4:
@@ -370,7 +371,10 @@ class BatchMaker():
 			for obj in self.objects:
 				obj.draw(frame, self.batch_s)
 			for obj in self.objects:
-				obj.update_states(self.batch_s, self.friction, self.gravity)
+				if isinstance(obj, SQM) and t==0:
+					pass
+				else:
+					obj.update_states(self.batch_s, self.friction, self.gravity)
 			self.batch.append(frame)
 		if self.set_type == 'recons':
 			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
@@ -390,7 +394,7 @@ if __name__ == '__main__':
   import os
   object_type  = 'sqm'
   set_type     = 'decode'
-  condition    = 'V-AV'
+  condition    = 'V'
   n_objects    = 2
   n_frames     = 10
   scale        = 2
