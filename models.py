@@ -1,6 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import imageio
+import numpy as np
 
 
 ######################
@@ -209,11 +210,6 @@ class Wrapper(tf.keras.Model):
     self.model_name    = model_name
     self.accuracy      = tf.keras.metrics.Accuracy()
 
-  def call(self, img):
-    x      = tf.tile(tf.expand_dims(img, axis=1), (1, self.n_frames, 1, 1, 1))
-    states = self.model(x)
-    return self.decoder(states[:,0])
-
   def get_reconstructions(self, x):
     if isinstance(self.model, PredNet):
         return self.model(x)[0]
@@ -250,6 +246,19 @@ class Wrapper(tf.keras.Model):
       accurs  += self.accuracy.result()
     self.accuracy.reset_states()
     return accurs/self.n_frames, tf.reduce_sum(losses)/self.n_frames
+
+  def compute_entropy(self, x, layer=-1):
+    batch_size  = x.shape[0]
+    base_change = np.log(2.0)
+    epsilon     = 7./3 - 4./3 - 1  # small value to handle 0*log(0) = 0
+    entropies   = np.zeros((batch_size, self.n_frames))
+    lat_vars    = self.model(x)[layer]
+    for b in range(batch_size):
+      for t in range(self.n_frames):
+        flat_vars       = tf.keras.backend.flatten(lat_vars[b, t]).numpy()
+        probs, _        = np.histogram(flat_vars, bins=100, range=(0.0, 1.0), density=True)
+        entropies[b, t] = -(probs*np.log(probs + epsilon)/base_change).sum()
+    return entropies
 
   def train_step(self, x, b, opt, labels=None, layer_decod=-1):
 
@@ -309,3 +318,52 @@ class Wrapper(tf.keras.Model):
     plt.savefig('./%s/%s_%s_vs_%s.png' % (self.model_name, mode, y_val_name, x_val_name))
     plt.show()
     plt.close()
+
+
+if __name__ == '__main__':
+
+  # Additional imports
+  import os
+  os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # avoid printing GPU info messages
+  os.environ['KMP_DUPLICATE_LIB_OK'] = '1'  # MacOS pb
+  from dataset import BatchMaker
+
+  # Parameters and model
+  obj_type     = 'neil'       # can be 'ball' or 'neil' for now
+  n_objs       = 2            # number of moving object in each sample
+  im_dims      = (64, 64, 1)  # image dimensions
+  n_frames     = 10           # frames in the input sequences
+  n_epochs     = 100          # epochs ran IN ADDITION TO latest checkpoint epoch
+  batch_size   = 16           # sample sequences sent in parallel
+  n_batches    = 64           # batches per epoch
+  init_lr      = 2e-4         # first parameter to tune if does not work
+  model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
+  wrapp        = Wrapper(model, my_recons, None, n_frames, name)
+  from_scratch = False 
+
+  # Initialize checkpoint
+  model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
+  ckpt_model = tf.train.Checkpoint(net=wrapp.model)
+  mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
+  
+  # Try to load latest checkpoint (if required and possible)
+  if not from_scratch:
+    ckpt_model.restore(mngr_model.latest_checkpoint).expect_partial()
+    if mngr_model.latest_checkpoint:
+      print('\nModel %s restored from %s\n' % (wrapp.model_name, mngr_model.latest_checkpoint))
+    else:
+      print('\nModel %s initialized from scratch\n' % (wrapp.model_name))
+      if not os.path.exists('./%s' % (wrapp.model_name,)):
+        os.mkdir('./%s' % (wrapp.model_name,))
+  else:
+    print('\nModel %s initialized from scratch\n' % (wrapp.model_name))
+    if not os.path.exists('./%s' % (wrapp.model_name,)):
+      os.mkdir('./%s' % (wrapp.model_name,))    
+
+  # Training loop for the reconstruction part
+  batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
+  batch       = tf.stack(batch_maker.generate_batch(), axis=1)/255
+  entropies   = wrapp.compute_entropy(batch)
+  for b in range(batch_size):
+    wrapp.plot_results(range(n_frames), entropies[b],         'frame', 'entropy', 'recons')
+

@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # avoid printing GPU info messages
-os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
+os.environ['KMP_DUPLICATE_LIB_OK'] = '1'  # MacOS pb
 from dataset import BatchMaker
 from models import *
 
@@ -17,7 +17,7 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
   
   # Initialize checkpoint
   model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
-  ckpt_model   = tf.train.Checkpoint(optim=optim, net=wrapp.model, losses=tf.Variable(tf.zeros((1000,))),)
+  ckpt_model = tf.train.Checkpoint(optim=optim, net=wrapp.model, losses=tf.Variable(tf.zeros((1000,))),)
   mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
   
   # Try to load latest checkpoint (if required)
@@ -68,8 +68,8 @@ if __name__ == '__main__':
   obj_type     = 'neil'       # can be 'ball' or 'neil' for now
   n_objs       = 2            # number of moving object in each sample
   im_dims      = (64, 64, 1)  # image dimensions
-  n_frames     = 10           # frames in the input sequences
-  n_epochs     = 100          # epochs ran IN ADDITION TO latest checkpoint epoch
+  n_frames     = 3           # frames in the input sequences
+  n_epochs     = 20          # epochs ran IN ADDITION TO latest checkpoint epoch
   batch_size   = 16           # sample sequences sent in parallel
   n_batches    = 64           # batches per epoch
   init_lr      = 2e-4         # first parameter to tune if does not work
