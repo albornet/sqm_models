@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 import matplotlib.pyplot as plt
 import imageio
 import numpy as np
@@ -283,10 +284,18 @@ class Wrapper(tf.keras.Model):
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
       self.plot_recons(x)
+      self.plot_lat_vars_state(x)
     if labels is not None:
       return acc, loss
     else:
       return loss
+    
+
+  def test_step(self, x, labels, layer_decod=-1):
+    lat_var   = self.model(x)[layer_decod]
+    acc, loss = self.compute_dec_loss(labels, lat_var)
+    return acc, loss
+
  
   def plot_recons(self, x):
 
@@ -366,4 +375,3 @@ if __name__ == '__main__':
   entropies   = wrapp.compute_entropy(batch)
   for b in range(batch_size):
     wrapp.plot_results(range(n_frames), entropies[b],         'frame', 'entropy', 'recons')
-
