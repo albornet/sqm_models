@@ -212,11 +212,6 @@ class Neil():
 		for b in range(batch_s):
 			patch  = self.patches[b]/255
 			start  = [self.pos[1, b] - patch.shape[0]//2, self.pos[0, b] - patch.shape[1]//2]
-			"""
-			print(start)
-			print(patch.shape)
-			print(wn.shape[1:3])
-			"""
 			rr, cc = rectangle(start=start, extent=patch.shape, shape=wn.shape[1:3])
 			rr     = rr.astype(int)
 			cc     = cc.astype(int)
