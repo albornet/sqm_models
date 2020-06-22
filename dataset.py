@@ -9,7 +9,7 @@ from skimage.transform import rotate
 class Ball():
 
 	# Function to create the ball
-	def __init__(self, set_type, balls, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav):
+	def __init__(self, set_type, balls, batch_s, scale, n_frames, n_chans, wn_h, wn_w, wall_d, grav):
 
 		# Select id, color, rebound fact, size, mass and gravity
 		self.colr  = rng().randint(    100,    255, (n_chans, batch_s))
@@ -52,7 +52,7 @@ class Ball():
 				self.pos[:, bad]  = np.vstack((x, y))
 
 	# Take care of ball chocs
-	def compute_changes(self, balls, self_idx, wn_h, wn_w, wall_d):
+	def compute_changes(self, balls, self_idx, wn_h, wn_w, wall_d, t):
 
 		# Check balls that move towards each other
 		for i in range(self_idx+1, len(balls)):
@@ -139,7 +139,8 @@ class Ball():
 class Neil():
 
 	# Initialize object's properties
-	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav):
+	def __init__(self, set_type, objects, batch_s, scale, n_frames, n_chans, wn_h, wn_w, wall_d, grav):
+		
 		# Select id, color, sizes, orientations, etc.
 		if set_type == 'recons':
 			#choices    = ['rectangle', 'ellipse', 'vernier']
@@ -149,18 +150,21 @@ class Neil():
 			choices    = ['vernier']
 			self.vside = rng().randint(0, 2,       (1, batch_s)) if objects == [] else objects[0].vside
 			self.ori   = rng().uniform(0, np.pi/2, (1, batch_s))
-		self.shape = rng().choice(choices,          (1,       batch_s))
-		self.colr  = rng().randint(100, 255,        (n_chans, batch_s))
-		self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
-		self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.popped = np.array([[False]*batch_s])
+		self.pop_t  = rng().randint(0, n_frames//2,  (1,       batch_s))
+		print(self.pop_t)
+		self.shape  = rng().choice( choices,         (1,       batch_s))
+		self.colr   = rng().randint(100, 255,        (n_chans, batch_s))
+		self.sizx   = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
+		self.sizy   = rng().uniform(wn_w/10, wn_w/4, (1,       batch_s))
 		self.sizx[self.shape == 'vernier'] /= 1.5  # verniers look better if not too wide
 		self.sizy[self.shape == 'vernier'] *= 2.0  # verniers appear smaller than other shapes
 		
 		# Select random initial position, velocity and acceleration
-		x        = rng().uniform( 2*wn_w/6, 4*wn_w/6, (1, batch_s))
-		y        = rng().uniform( 2*wn_h/6, 4*wn_h/6, (1, batch_s))
-		vx       = rng().uniform(-5*scale,  5*scale,  (1, batch_s))
-		vy       = rng().uniform(-5*scale,  5*scale,  (1, batch_s))
+		x        = rng().uniform( 0,       wn_w,     (1, batch_s))
+		y        = rng().uniform( 0,       wn_h,     (1, batch_s))
+		vx       = rng().uniform(-5*scale, 5*scale,  (1, batch_s))
+		vy       = rng().uniform(-5*scale, 5*scale,  (1, batch_s))
 		self.pos = np.vstack((x,   y))
 		self.vel = np.vstack((vx, vy))
 		self.acc = np.array([[0.00]*batch_s, [grav]*batch_s])
@@ -200,44 +204,45 @@ class Neil():
 					patch = np.fliplr(patch) 
 			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
 
-		
-
 	# Compute what must be updated between the frames
-	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d):
-		pass
+	def compute_changes(self, objects, self_idx, wn_h, wn_w, wall_d, t):
+		self.popped[t > self.pop_t] = True
 
 	# Draw the object (square patch)
 	def draw(self, wn, batch_s):
 		for b in range(batch_s):
-			patch  = self.patches[b]/255
-			start  = [self.pos[1, b] - patch.shape[0]//2, self.pos[0, b] - patch.shape[1]//2]
-			rr, cc = rectangle(start=start, extent=patch.shape, shape=wn.shape[1:3])
-			rr     = rr.astype(int)
-			cc     = cc.astype(int)
-			pat_rr = (rr - self.pos[1, b] - patch.shape[0]/2).astype(int)
-			pat_cc = (cc - self.pos[0, b] - patch.shape[1]/2).astype(int)
-			bckgrd = wn[b, rr, cc, :]
-			for i, color in enumerate(self.colr[:, b]):
-				col_patch = color*patch[pat_rr, pat_cc] - bckgrd[:,:,i]
-				wn[b, rr, cc, i] += col_patch.clip(0, 255).astype(np.uint8)
+			if self.popped[:, b]:
+				patch  = self.patches[b]/255
+				start  = [self.pos[1, b] - patch.shape[0]//2, self.pos[0, b] - patch.shape[1]//2]
+				rr, cc = rectangle(start=start, extent=patch.shape, shape=wn.shape[1:3])
+				rr     = rr.astype(int)
+				cc     = cc.astype(int)
+				pat_rr = (rr - self.pos[1, b] - patch.shape[0]/2).astype(int)
+				pat_cc = (cc - self.pos[0, b] - patch.shape[1]/2).astype(int)
+				bckgrd = wn[b, rr, cc, :]
+				for i, color in enumerate(self.colr[:, b]):
+					col_patch = color*patch[pat_rr, pat_cc] - bckgrd[:,:,i]
+					wn[b, rr, cc, i] += col_patch.clip(0, 255).astype(np.uint8)
 
 	# Update objects position and velocity
 	def update_states(self, batch_s, friction, gravity):
-		self.vel += self.acc - self.vel*friction
-		self.pos += self.vel
+		self.vel[:, self.popped[0]] += self.acc[:, self.popped[0]] - self.vel[:, self.popped[0]]*friction
+		self.pos[:, self.popped[0]] += self.vel[:, self.popped[0]]
 
 
 class SQM(Neil):
+
 	# Initialize object's properties
-	def __init__(self, set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav, condition, side):
+	def __init__(self, set_type, objects, batch_s, scale, n_frames, n_chans, wn_h, wn_w, wall_d, grav, condition, side):
 		
 		super().__init__(set_type, objects, batch_s, scale, n_chans, wn_h, wn_w, wall_d, grav)
 		
 		self.ori       = np.zeros((1, batch_s)) 
 		self.colr      = 150*np.ones((n_chans, batch_s))
+		self.pop_t     = rng().randint(0,   n_frames,   (1,       batch_s))
+		self.popped    = np.array([[False]*batch_s])
 		self.sizx      = wn_w/10*np.ones((1,       batch_s))
 		self.sizy      = wn_w/3*np.ones((1,       batch_s))
-
 		self.condition = condition
 		self.side      = side # 0 for the right line and 1 for the left one
 		self.vside     = rng().randint(0, 2,       (1, batch_s))
@@ -248,11 +253,11 @@ class SQM(Neil):
 				self.generate_patches(False)
 		else: 
 			self.generate_patches(False)
-		
 
 		x        = wn_w/2*np.ones((1, batch_s)) 
 		y        = wn_h/2*np.ones((1, batch_s))
 		self.pos = np.vstack((x,   y))
+
 		# Set the velocity sign in function of the relative position of the line
 		if self.side == 0:
 			vx = 1*scale*np.ones((1, batch_s)) # for the moment 
@@ -331,6 +336,7 @@ class BatchMaker():
 		self.condition = condition
 		self.batch_s   = batch_s
 		self.n_frames  = n_frames
+		self.noise_lvl = int(0.1*255)
 		self.n_chans   = im_dims[-1]
 		self.scale     = max(im_dims[0], im_dims[1])/64
 		self.wn_h      = int(im_dims[0]*self.scale)
@@ -344,15 +350,14 @@ class BatchMaker():
 	def init_batch(self):
 		self.batch   = []
 		self.objects = []
-		self.window  = 127*np.ones((self.batch_s, self.wn_h, self.wn_w, self.n_chans), dtype=np.uint8)
-		
+		self.window  = 127*np.ones((self.batch_s, self.wn_h, self.wn_w, self.n_chans), dtype=int)
 		for _ in range(self.n_objects):
 			if (self.Object == SQM):
-				self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
-			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity, self.condition, _))
+				self.objects.append(self.Object(self.set_type, self.objects, self.batch_s, self.scale,
+					self.n_frames, self.n_chans, self.wn_h, self.wn_w, self.wall_d, self.gravity, self.condition, _))
 			else:
-				self.objects.append(self.Object(  self.set_type, self.objects, self.batch_s, self.scale,
-			                    self.n_chans, self.wn_h,     self.wn_w,    self.wall_d,  self.gravity))
+				self.objects.append(self.Object(self.set_type, self.objects, self.batch_s, self.scale,
+					self.n_frames, self.n_chans, self.wn_h, self.wn_w, self.wall_d, self.gravity))
 		self.bg_color = rng().randint(0, 80, (self.batch_s, self.n_chans))
 		for b in range(self.batch_s):
 			for c in range(self.n_chans):
@@ -364,10 +369,7 @@ class BatchMaker():
 		for t in range(self.n_frames):
 			frame = self.window*1
 			for i, obj in enumerate(self.objects):
-				if isinstance(obj, SQM):
-					obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d, t)
-				else:
-					obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d)
+				obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d, t)
 			for obj in self.objects:
 				obj.draw(frame, self.batch_s)
 			for obj in self.objects:
@@ -375,7 +377,8 @@ class BatchMaker():
 					pass
 				else:
 					obj.update_states(self.batch_s, self.friction, self.gravity)
-			self.batch.append(frame)
+			noise = np.random.randint(-self.noise_lvl//2, self.noise_lvl//2, self.window.shape)
+			self.batch.append((frame + noise).clip(0, 255).astype(np.uint8))
 		if self.set_type == 'recons':
 			return self.batch  # list of n_frames numpy arrays of dims [batch, h, w, channels]
 		else:
@@ -383,7 +386,6 @@ class BatchMaker():
 				return self.batch, np.logical_not(self.objects[0].vside[0]).astype(int) # invert the labels if V-AV condition
 			else:
 				return self.batch, self.objects[0].vside[0]  # verniers share same offset in each sequence
-
 
 
 # Show example of reconstruction batch

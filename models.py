@@ -251,7 +251,7 @@ class Wrapper(tf.keras.Model):
   def compute_entropy(self, x, layer=-1):
     batch_size  = x.shape[0]
     base_change = np.log(2.0)
-    epsilon     = 7./3 - 4./3 - 1  # small value to handle 0*log(0) = 0
+    epsilon     = 7./3 - 4./3 - 1  # smallest float value to handle 0*log(0) = 0
     entropies   = np.zeros((batch_size, self.n_frames))
     lat_vars    = self.model(x)[layer]
     for b in range(batch_size):
@@ -283,40 +283,42 @@ class Wrapper(tf.keras.Model):
     grad = tape.gradient(loss, to_train)
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
-      self.plot_recons(x)
-      self.plot_lat_vars_state(x)
+      self.plot_recons(x, sample_indexes=[0])
+      # self.plot_lat_vars_state(x)
     if labels is not None:
       return acc, loss
     else:
       return loss
     
-
   def test_step(self, x, labels, layer_decod=-1):
     lat_var   = self.model(x)[layer_decod]
     acc, loss = self.compute_dec_loss(labels, lat_var)
     return acc, loss
 
- 
-  def plot_recons(self, x):
+  def plot_recons(self, x, sample_indexes, show=False):
 
     # Plot frames
-    r = tf.clip_by_value(self.get_reconstructions(x), 0.0, 1.0)
-    f = plt.figure(figsize=(int(self.n_frames*(x.shape[3]+3)/32),int(2*(x.shape[2]+3)/32)))
-    for t in range(self.n_frames):
-      ax1 = f.add_subplot(2, self.n_frames+1, 0*(self.n_frames+1) + t + 1)
-      ax2 = f.add_subplot(2, self.n_frames+1, 1*(self.n_frames+1) + t + 1)
-      ax1.imshow(tf.squeeze(x[0,t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
-      ax2.imshow(tf.squeeze(r[0,t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
-    plt.savefig('./%s/latest_input_vs_prediction_epoch.png' % (self.model_name))
-    plt.close()
+    r  = tf.clip_by_value(self.get_reconstructions(x), 0.0, 1.0)
+    t  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
+    xr = tf.concat((x, t, r), axis=3)
+    for s in sample_indexes:
+      f  = plt.figure(figsize=(int(self.n_frames*(x.shape[3] + 3)/32),int(2*(x.shape[2] + 3)/32)))
+      for t in range(self.n_frames):
+        ax1 = f.add_subplot(2, self.n_frames+1, 0*(self.n_frames+1) + t + 1)
+        ax2 = f.add_subplot(2, self.n_frames+1, 1*(self.n_frames+1) + t + 1)
+        ax1.imshow(tf.squeeze(x[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
+        ax2.imshow(tf.squeeze(r[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
+      if show:
+        plt.show()
+      else:
+        plt.savefig('./%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s))
+      plt.close()
 
-    # Plot gifs
-    template  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
-    xr        = tf.concat((x, template, r), axis=3)
-    xr_frames = [tf.cast(255*xr[0,t], tf.uint8).numpy() for t in range(self.n_frames)]
-    imageio.mimsave('./%s/latest_input_vs_prediction.gif' % (self.model_name), xr_frames, duration=0.1)
+      # Plot gifs
+      xr_frames = [tf.cast(255*xr[s, t], tf.uint8).numpy() for t in range(self.n_frames)]
+      imageio.mimsave('./%s/latest_input_vs_prediction_%02i.gif' % (self.model_name, s), xr_frames, duration=0.1)
   
-  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode):
+  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode, show=False):
     plt.figure()
     plt.ylabel(y_val_name)
     plt.xlabel(x_val_name)
@@ -325,7 +327,8 @@ class Wrapper(tf.keras.Model):
     plt.plot(x_vals, y_vals)
     plt.grid()
     plt.savefig('./%s/%s_%s_vs_%s.png' % (self.model_name, mode, y_val_name, x_val_name))
-    plt.show()
+    if show:
+      plt.show()
     plt.close()
 
 
@@ -341,14 +344,14 @@ if __name__ == '__main__':
   obj_type     = 'neil'       # can be 'ball' or 'neil' for now
   n_objs       = 2            # number of moving object in each sample
   im_dims      = (64, 64, 1)  # image dimensions
-  n_frames     = 10           # frames in the input sequences
+  n_frames     = 20           # frames in the input sequences
   n_epochs     = 100          # epochs ran IN ADDITION TO latest checkpoint epoch
-  batch_size   = 16           # sample sequences sent in parallel
+  batch_size   = 1           # sample sequences sent in parallel
   n_batches    = 64           # batches per epoch
   init_lr      = 2e-4         # first parameter to tune if does not work
   model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   wrapp        = Wrapper(model, my_recons, None, n_frames, name)
-  from_scratch = False 
+  from_scratch = False
 
   # Initialize checkpoint
   model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
@@ -367,11 +370,12 @@ if __name__ == '__main__':
   else:
     print('\nModel %s initialized from scratch\n' % (wrapp.model_name))
     if not os.path.exists('./%s' % (wrapp.model_name,)):
-      os.mkdir('./%s' % (wrapp.model_name,))    
+      os.mkdir('./%s' % (wrapp.model_name,))
 
   # Training loop for the reconstruction part
   batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
   batch       = tf.stack(batch_maker.generate_batch(), axis=1)/255
   entropies   = wrapp.compute_entropy(batch)
+  wrapp.plot_recons(batch, sample_indexes=range(batch_size), show=False)
   for b in range(batch_size):
-    wrapp.plot_results(range(n_frames), entropies[b],         'frame', 'entropy', 'recons')
+    wrapp.plot_results(range(n_frames), entropies[b], 'frame', 'entropy', 'recons', show=True)
