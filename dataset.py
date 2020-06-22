@@ -198,6 +198,7 @@ class Neil():
 				patch[rr2, cc2] = 255
 				if vside:  # 0 is R vernier and 1 is L vernier 
 					patch = np.fliplr(patch) 
+
 			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
 
 		
@@ -211,6 +212,11 @@ class Neil():
 		for b in range(batch_s):
 			patch  = self.patches[b]/255
 			start  = [self.pos[1, b] - patch.shape[0]//2, self.pos[0, b] - patch.shape[1]//2]
+			"""
+			print(start)
+			print(patch.shape)
+			print(wn.shape[1:3])
+			"""
 			rr, cc = rectangle(start=start, extent=patch.shape, shape=wn.shape[1:3])
 			rr     = rr.astype(int)
 			cc     = cc.astype(int)
@@ -218,8 +224,10 @@ class Neil():
 			pat_cc = (cc - self.pos[0, b] - patch.shape[1]/2).astype(int)
 			bckgrd = wn[b, rr, cc, :]
 			for i, color in enumerate(self.colr[:, b]):
-				col_patch = color*patch[pat_rr, pat_cc] - bckgrd[:,:,i]
+				col_patch = color*patch[pat_rr, pat_cc] - bckgrd[:,:,i] 
 				wn[b, rr, cc, i] += col_patch.clip(0, 255).astype(np.uint8)
+				
+				
 
 	# Update objects position and velocity
 	def update_states(self, batch_s, friction, gravity):
@@ -369,7 +377,10 @@ class BatchMaker():
 				else:
 					obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d)
 			for obj in self.objects:
-				obj.draw(frame, self.batch_s)
+				if isinstance(obj, Neil) and t < 3: # add background frames (3 first frames) at the begining for the entropy normalization
+					pass
+				else:
+					obj.draw(frame, self.batch_s)
 			for obj in self.objects:
 				if isinstance(obj, SQM) and t==0:
 					pass
@@ -392,7 +403,7 @@ if __name__ == '__main__':
   import pyglet   # conda install -c conda-forge pyglet
   import imageio  # conda install -c conda-forge imageio
   import os
-  object_type  = 'sqm'
+  object_type  = 'neil'
   set_type     = 'decode'
   condition    = 'V'
   n_objects    = 2
