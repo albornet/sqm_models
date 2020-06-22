@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from scipy.stats import entropy
 import matplotlib.pyplot as plt
 import imageio
 
@@ -275,13 +276,15 @@ class Wrapper(tf.keras.Model):
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
       self.plot_recons(x)
-      self.plot_lat_vars_state(x)
+      #self.plot_state_all_layers(x)
+      self.plot_state_layer(x)
+      self.plot_entropies(x)
+      self.plot_distrubution_activities_lat_vars(x)
     if labels is not None:
       return acc, loss
     else:
       return loss
     
-
   def test_step(self, x, labels, layer_decod=-1):
     lat_var   = self.model(x)[layer_decod]
     acc, loss = self.compute_dec_loss(labels, lat_var)
@@ -316,6 +319,105 @@ class Wrapper(tf.keras.Model):
     plt.plot(x_vals, y_vals)
     plt.grid()
     plt.savefig('./%s/%s_%s_vs_%s.png' % (self.model_name, mode, y_val_name, x_val_name))
-    plt.show()
+    #plt.show()
     plt.close()
+
+
+  def plot_state_all_layers(self, x):
+    fig, axes = plt.subplots(self.model.n_layers, 2, figsize=(16, self.model.n_layers * 4))
+    lat_vars = self.model(x)
+    for layer in range(self.model.n_layers): # plot aussi les autres layers juste pour voir, même si on s'en fout un peu
+      first_sample = np.mean(lat_vars[layer][0, :, :, :, :], axis=-1) # average over channels
+      if layer > 0:
+        axes[layer, 0].plot(range(self.n_frames), 100*first_sample[:, :, 0]) 
+        axes[layer, 0].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 1')
+        axes[layer, 0].grid()
+        axes[layer, 1].plot(range(self.n_frames), 100*first_sample[:, 0, :]) 
+        axes[layer, 1].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 2')
+        axes[layer, 1].grid()
+      else:
+        axes[layer, 0].plot(range(self.n_frames), first_sample[:, :, 0]) 
+        axes[layer, 0].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 1')
+        axes[layer, 0].grid()
+        axes[layer, 1].plot(range(self.n_frames), first_sample[:, 0, :]) 
+        axes[layer, 1].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 2')
+        axes[layer, 1].grid()
+
+    fig.savefig('./%s/all_layers_vs_frames.png' % (self.model_name))
+
+  def plot_state_layer(self, x, layer=-1):
+    lat_vars                 = self.model(x)[layer][0] # sample 0 
+    mean_sates_over_channels = np.mean(lat_vars, axis=-1) # average over the channels
+    n_vars                   = lat_vars.shape[1]*lat_vars.shape[2]
+    vars_to_plot             = np.zeros((self.n_frames-1, n_vars))
+    #print(mean_sates_over_channels)
+    #print(lat_vars)
+
+    for t in range(1, self.n_frames): 
+      flat_vars = tf.keras.backend.flatten(mean_sates_over_channels[t,:,:]).numpy()
+      vars_to_plot[t-1,:] = flat_vars
+
+    plt.figure()
+    plt.ylabel('Latent variables')
+    plt.xlabel('Frames')
+    plt.plot(range(1, self.n_frames), vars_to_plot)
+    plt.grid()
+    plt.savefig('./%s/layers_vs_frames.png' % (self.model_name))
+    #plt.show()
+    plt.close()
+
+  def compute_entropy(self, x, layer=-1):
+    entropies = []
+    lat_vars  = self.model(x)[layer][0] # sample 0
+
+    for t in range(self.n_frames):
+      """
+      flat_lat_vars           = tf.keras.backend.flatten(lat_vars[t,:,:,:]) 
+      min_                    = tf.math.reduce_min(flat_lat_vars[:3] ) # normalize with the activity produced by the 3 first frames of background
+      max_                    = tf.math.reduce_max(flat_lat_vars[:3])
+      normalized_lat_vars = (flat_lat_vars - min_) / (max_ - min_)
+      """
+      
+      min_                         = tf.math.reduce_min(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
+      max_                         = tf.math.reduce_max(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
+      norm_lat_vars                = ((tf.keras.backend.flatten(lat_vars[t,:,:,:]) - min_) / (max_ - min_)).numpy() ## pas ouf
+      prob_lat_vars                = norm_lat_vars/np.sum(norm_lat_vars)
+      
+
+      
+      
+      entropies.append(entropy(prob_lat_vars))
+
+      #print(entropies)
+    return entropies
+
+  def plot_entropies(self, x, layer=-1):
+    plt.figure()
+    plt.ylabel('Entropy')
+    plt.xlabel('Frame')
+    plt.plot(range(self.n_frames), self.compute_entropy(x, layer)) #, 'go', linewidth=2, markersize=6)
+    plt.grid()
+    plt.savefig('./%s/entropy_vs_frames.png' % (self.model_name))
+    #plt.show()
+    plt.close()
+
+  def plot_distrubution_activities_lat_vars(self, x, layer=-1):
+    fig, axes = plt.subplots(self.n_frames, 1, figsize=(24, 24))
+
+    for t in range(self.n_frames):
+      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
+      axes[t].hist(flat_lat_vars, bins=100, range=(np.amin(flat_lat_vars), np.amax(flat_lat_vars)))#range=(-0.075, 0.075)) #(tf.reduce_min(flat_lat_vars), tf.reduce_max(flat_lat_vars)))
+      axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
+      axes[t].grid()
+    
+    fig.savefig('./%s/distribution_of_neuron_activities.png' % (self.model_name))
+
+
+
+
   
+
+
+
+
+
