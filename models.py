@@ -378,7 +378,6 @@ class Wrapper(tf.keras.Model):
       normalized_lat_vars = (flat_lat_vars - min_) / (max_ - min_)
       """
       
-      ## BONNE VERSION:
       """
       min_                         = tf.math.reduce_min(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
       max_                         = tf.math.reduce_max(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
