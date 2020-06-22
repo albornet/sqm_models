@@ -371,28 +371,18 @@ class Wrapper(tf.keras.Model):
     #lat_vars  = self.model(x)[layer][0] # sample 0
 
     for t in range(self.n_frames):
-      """
-      flat_lat_vars           = tf.keras.backend.flatten(lat_vars[t,:,:,:]) 
-      min_                    = tf.math.reduce_min(flat_lat_vars[:3] ) # normalize with the activity produced by the 3 first frames of background
-      max_                    = tf.math.reduce_max(flat_lat_vars[:3])
-      normalized_lat_vars = (flat_lat_vars - min_) / (max_ - min_)
-      """
+
+      flat_lat_vars          = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
+      hist, bin_edges        = np.histogram(flat_lat_vars, bins=100, density=True)
       
-      """
-      min_                         = tf.math.reduce_min(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
-      max_                         = tf.math.reduce_max(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
-      norm_lat_vars                = ((tf.keras.backend.flatten(lat_vars[t,:,:,:]) - min_) / (max_ - min_)).numpy() ## pas ouf
-      prob_lat_vars                = norm_lat_vars/np.sum(norm_lat_vars)
-
-    entropies.append(entropy(prob_lat_vars))
-      """
-
-      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
-      hist, _        = np.histogram(flat_lat_vars, bins=100, density=True)
-      hist          /= np.sum(hist)
-      entropy        = -1.0*np.sum(hist * np.log(hist + np.finfo(float).eps))
-
+      ## Versions juste avec le bout de la distribution
+      #hist = hist[bin_edges[1:]>0.03] 
+      #hist, bin_edges         = np.histogram(flat_lat_vars[np.where(flat_lat_vars>0.03)], bins=100, density=True)
+      
+      hist                   /= np.sum(hist)
+      entropy                 = -1.0*np.sum(hist * np.log(hist + np.finfo(float).eps))
       entropies.append(entropy)
+
     return entropies
 
   def plot_entropies(self, x, layer=-1):
@@ -402,7 +392,7 @@ class Wrapper(tf.keras.Model):
     plt.plot(range(1, self.n_frames), self.compute_entropy(x, layer)[1:]) #, 'go', linewidth=2, markersize=6)
     plt.grid()
     plt.savefig('./%s/entropy_vs_frames.png' % (self.model_name))
-    #plt.show()
+    plt.show()
     plt.close()
 
   def plot_distrubution_activities_lat_vars(self, x, layer=-1):
@@ -410,7 +400,7 @@ class Wrapper(tf.keras.Model):
 
     for t in range(self.n_frames):
       flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
-      axes[t].hist(flat_lat_vars, bins=100, range=(-0.075, 0.075))  #range=(np.amin(flat_lat_vars), np.amax(flat_lat_vars)))#range=(-0.075, 0.075)) 
+      axes[t].hist(flat_lat_vars, bins=100, range=(-0.075, 0.075), density=True)  #range=(np.amin(flat_lat_vars), np.amax(flat_lat_vars)))#range=(-0.075, 0.075)) 
       axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
       axes[t].grid()
 
