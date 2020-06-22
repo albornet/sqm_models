@@ -376,8 +376,8 @@ class Wrapper(tf.keras.Model):
       hist, bin_edges        = np.histogram(flat_lat_vars, bins=100, density=True)
       
       ## Versions juste avec le bout de la distribution
-      #hist = hist[bin_edges[1:]>0.03] 
-      #hist, bin_edges         = np.histogram(flat_lat_vars[np.where(flat_lat_vars>0.03)], bins=100, density=True)
+      #hist = hist[bin_edges[1:]>0.04] 
+      #hist, bin_edges         = np.histogram(flat_lat_vars[np.where(flat_lat_vars>0.04)], bins=100, density=True)
       
       hist                   /= np.sum(hist)
       entropy                 = -1.0*np.sum(hist * np.log(hist + np.finfo(float).eps))
