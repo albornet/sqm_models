@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from scipy.stats import entropy
 import matplotlib.pyplot as plt
 import imageio
 import numpy as np
@@ -283,8 +284,11 @@ class Wrapper(tf.keras.Model):
     grad = tape.gradient(loss, to_train)
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
-      self.plot_recons(x, sample_indexes=[0])
-      # self.plot_lat_vars_state(x)
+      self.plot_recons(x)
+      #self.plot_state_all_layers(x)
+      self.plot_state_layer(x)
+      self.plot_entropies(x)
+      self.plot_distrubution_activities_lat_vars(x)
     if labels is not None:
       return acc, loss
     else:
@@ -331,51 +335,71 @@ class Wrapper(tf.keras.Model):
       plt.show()
     plt.close()
 
+  def plot_state_all_layers(self, x):
+    fig, axes = plt.subplots(self.model.n_layers, 2, figsize=(16, self.model.n_layers * 4))
+    lat_vars = self.model(x)
+    for layer in range(self.model.n_layers): # plot aussi les autres layers juste pour voir, même si on s'en fout un peu
+      first_sample = np.mean(lat_vars[layer][0, :, :, :, :], axis=-1) # average over channels
+      if layer > 0:
+        axes[layer, 0].plot(range(self.n_frames), 100*first_sample[:, :, 0]) 
+        axes[layer, 0].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 1')
+        axes[layer, 0].grid()
+        axes[layer, 1].plot(range(self.n_frames), 100*first_sample[:, 0, :]) 
+        axes[layer, 1].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 2')
+        axes[layer, 1].grid()
+      else:
+        axes[layer, 0].plot(range(self.n_frames), first_sample[:, :, 0]) 
+        axes[layer, 0].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 1')
+        axes[layer, 0].grid()
+        axes[layer, 1].plot(range(self.n_frames), first_sample[:, 0, :]) 
+        axes[layer, 1].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 2')
+        axes[layer, 1].grid()
+    fig.savefig('./%s/all_layers_vs_frames.png' % (self.model_name))
 
-if __name__ == '__main__':
+  def plot_state_layer(self, x, layer=-1):
+    lat_vars                 = self.model(x)[layer][0]     # sample 0 
+    mean_sates_over_channels = np.mean(lat_vars, axis=-1)  # average over the channels
+    n_vars                   = lat_vars.shape[1]*lat_vars.shape[2]
+    vars_to_plot             = np.zeros((self.n_frames-1, n_vars))
+    for t in range(1, self.n_frames): 
+      flat_vars = tf.keras.backend.flatten(mean_sates_over_channels[t,:,:]).numpy()
+      vars_to_plot[t-1,:] = flat_vars
 
-  # Additional imports
-  import os
-  os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # avoid printing GPU info messages
-  os.environ['KMP_DUPLICATE_LIB_OK'] = '1'  # MacOS pb
-  from dataset import BatchMaker
+    plt.figure()
+    plt.ylabel('Latent variables')
+    plt.xlabel('Frames')
+    plt.plot(range(1, self.n_frames), vars_to_plot)
+    plt.grid()
+    plt.savefig('./%s/layers_vs_frames.png' % (self.model_name))
+    #plt.show()
+    plt.close()
 
-  # Parameters and model
-  obj_type     = 'neil'       # can be 'ball' or 'neil' for now
-  n_objs       = 2            # number of moving object in each sample
-  im_dims      = (64, 64, 1)  # image dimensions
-  n_frames     = 20           # frames in the input sequences
-  n_epochs     = 100          # epochs ran IN ADDITION TO latest checkpoint epoch
-  batch_size   = 1           # sample sequences sent in parallel
-  n_batches    = 64           # batches per epoch
-  init_lr      = 2e-4         # first parameter to tune if does not work
-  model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
-  wrapp        = Wrapper(model, my_recons, None, n_frames, name)
-  from_scratch = False
+  def compute_entropy(self, x, layer=-1):
+    entropies = []
+    lat_vars  = self.model(x)[layer][0] # sample 0
+    for t in range(self.n_frames):
+      min_                         = tf.math.reduce_min(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
+      max_                         = tf.math.reduce_max(tf.keras.backend.flatten(lat_vars[:3,:,:,:]))
+      norm_lat_vars                = ((tf.keras.backend.flatten(lat_vars[t,:,:,:]) - min_) / (max_ - min_)).numpy() ## pas ouf
+      prob_lat_vars                = norm_lat_vars/np.sum(norm_lat_vars)      
+      entropies.append(entropy(prob_lat_vars))
+      return entropies
 
-  # Initialize checkpoint
-  model_dir  = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
-  ckpt_model = tf.train.Checkpoint(net=wrapp.model)
-  mngr_model = tf.train.CheckpointManager(ckpt_model, directory=model_dir, max_to_keep=1)
-  
-  # Try to load latest checkpoint (if required and possible)
-  if not from_scratch:
-    ckpt_model.restore(mngr_model.latest_checkpoint).expect_partial()
-    if mngr_model.latest_checkpoint:
-      print('\nModel %s restored from %s\n' % (wrapp.model_name, mngr_model.latest_checkpoint))
-    else:
-      print('\nModel %s initialized from scratch\n' % (wrapp.model_name))
-      if not os.path.exists('./%s' % (wrapp.model_name,)):
-        os.mkdir('./%s' % (wrapp.model_name,))
-  else:
-    print('\nModel %s initialized from scratch\n' % (wrapp.model_name))
-    if not os.path.exists('./%s' % (wrapp.model_name,)):
-      os.mkdir('./%s' % (wrapp.model_name,))
+  def plot_entropies(self, x, layer=-1):
+    plt.figure()
+    plt.ylabel('Entropy')
+    plt.xlabel('Frame')
+    plt.plot(range(self.n_frames), self.compute_entropy(x, layer)) #, 'go', linewidth=2, markersize=6)
+    plt.grid()
+    plt.savefig('./%s/entropy_vs_frames.png' % (self.model_name))
+    #plt.show()
+    plt.close()
 
-  # Training loop for the reconstruction part
-  batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
-  batch       = tf.stack(batch_maker.generate_batch(), axis=1)/255
-  entropies   = wrapp.compute_entropy(batch)
-  wrapp.plot_recons(batch, sample_indexes=range(batch_size), show=False)
-  for b in range(batch_size):
-    wrapp.plot_results(range(n_frames), entropies[b], 'frame', 'entropy', 'recons', show=True)
+  def plot_distrubution_activities_lat_vars(self, x, layer=-1):
+    fig, axes = plt.subplots(self.n_frames, 1, figsize=(24, 24))
+    for t in range(self.n_frames):
+      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
+      axes[t].hist(flat_lat_vars, bins=100, range=(np.amin(flat_lat_vars), np.amax(flat_lat_vars)))#range=(-0.075, 0.075)) #(tf.reduce_min(flat_lat_vars), tf.reduce_max(flat_lat_vars)))
+      axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
+      axes[t].grid()  
+    fig.savefig('./%s/distribution_of_neuron_activities.png' % (self.model_name))

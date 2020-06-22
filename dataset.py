@@ -202,6 +202,7 @@ class Neil():
 				patch[rr2, cc2] = 255
 				if vside:  # 0 is R vernier and 1 is L vernier 
 					patch = np.fliplr(patch) 
+
 			self.patches.append(rotate(patch, self.ori[0, b]).astype(int))
 
 	# Compute what must be updated between the frames
@@ -371,7 +372,10 @@ class BatchMaker():
 			for i, obj in enumerate(self.objects):
 				obj.compute_changes(self.objects, i, self.wn_h, self.wn_w, self.wall_d, t)
 			for obj in self.objects:
-				obj.draw(frame, self.batch_s)
+				if isinstance(obj, Neil) and t < 3: # add background frames (3 first frames) at the begining for the entropy normalization
+					pass
+				else:
+					obj.draw(frame, self.batch_s)
 			for obj in self.objects:
 				if isinstance(obj, SQM) and t==0:
 					pass
@@ -394,7 +398,7 @@ if __name__ == '__main__':
   import pyglet   # conda install -c conda-forge pyglet
   import imageio  # conda install -c conda-forge imageio
   import os
-  object_type  = 'sqm'
+  object_type  = 'neil'
   set_type     = 'decode'
   condition    = 'V'
   n_objects    = 2
