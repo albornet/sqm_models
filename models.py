@@ -284,11 +284,11 @@ class Wrapper(tf.keras.Model):
     grad = tape.gradient(loss, to_train)
     opt.apply_gradients(zip(grad, to_train))
     if b == 0:
-      self.plot_recons(x)
-      #self.plot_state_all_layers(x)
-      self.plot_state_layer(x)
-      self.plot_entropies(x)
-      self.plot_distrubution_activities_lat_vars(x)
+      self.plot_recons(x, sample_indexes=[0])
+      # self.plot_state_all_layers(x)
+      # self.plot_state_layer(x)
+      # self.plot_entropies(x)
+      # self.plot_distrubution_activities_lat_vars(x)
     if labels is not None:
       return acc, loss
     else:
