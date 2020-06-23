@@ -42,8 +42,8 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
     # Train the model for one epoch
     mean_loss = 0.0
     for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
-      batch      = tf.stack(batch_maker.generate_batch()[0], axis=1)/255
-      rec_loss   = wrapp.train_step(batch, b, ckpt_model.optim)
+      batch      = batch_maker.generate_batch()[0]
+      rec_loss   = wrapp.train_step(tf.stack(batch, axis=1)/255, b, ckpt_model.optim)
       mean_loss += rec_loss
       print('\rRunning batch %02i/%02i' % (b+1, n_batches), end='')
 

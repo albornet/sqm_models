@@ -75,14 +75,14 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
 if __name__ == '__main__':
 
-  crit_type   = 'entropy'    # can be 'entropy', 'entropy_threshold', 'prediction_error'
-  n_objs      = 2            # number of moving object in each sample
-  im_dims     = (64, 64, 1)  # image dimensions
-  n_frames    = 10           # frames in the input sequences
-  n_epochs    = 100          # epochs ran IN ADDITION TO latest checkpoint epoch
-  batch_size  = 16           # sample sequences sent in parallel
-  n_batches   = 64           # batches per epoch
-  init_lr     = 1e-3         # first parameter to tune if does not work
+  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error'
+  n_objs      = 2                 # number of moving object in each sample
+  im_dims     = (64, 64, 1)       # image dimensions
+  n_frames    = 10                # frames in the input sequences
+  n_epochs    = 100               # epochs ran IN ADDITION TO latest checkpoint epoch
+  batch_size  = 16                # sample sequences sent in parallel
+  n_batches   = 64                # batches per epoch
+  init_lr     = 1e-3              # first parameter to tune if does not work
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   decoder     = conv_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, crit_type, n_frames, name)

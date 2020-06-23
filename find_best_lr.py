@@ -48,11 +48,11 @@ def find_best_lr(wrapp, n_objs, im_dims, batch_size, mode='decode', custom=True,
 
     # Compute loss
     if mode == 'recons':
-      batch = batch_maker.generate_batch()
-      loss = wrapp.train_step(tf.stack(batch, axis=1)/255, s, optim)
+      batch = batch_maker.generate_batch()[0]
+      loss  = wrapp.train_step(tf.stack(batch, axis=1)/255, s, optim)
     elif mode == 'decode':
       batch, labels = batch_maker.generate_batch()
-      acc, loss = wrapp.train_step(tf.stack(batch, axis=1)/255, s, optim, labels)
+      acc, loss     = wrapp.train_step(tf.stack(batch, axis=1)/255, s, optim, labels)
     
     # Record loss
     losses.append(loss.numpy())
@@ -73,13 +73,14 @@ def find_best_lr(wrapp, n_objs, im_dims, batch_size, mode='decode', custom=True,
 
 if __name__ == '__main__':
 
-  train_mode  = 'recons'     # can be 'recons' or 'decode'
-  n_objs      = 2            # number of moving object in each sample
-  im_dims     = (64, 64, 1)  # image dimensions
-  n_frames    = 10           # frames in the input sequences
-  batch_size  = 16           # sample sequences sent in parallel
+  train_mode  = 'recons'          # can be 'recons' or 'decode'
+  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error'
+  n_objs      = 2                 # number of moving object in each sample
+  im_dims     = (64, 64, 1)       # image dimensions
+  n_frames    = 10                # frames in the input sequences
+  batch_size  = 16                # sample sequences sent in parallel
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   decoder     = simple_decoder()
-  wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
+  wrapp       = Wrapper(model, my_recons, decoder, crit_type, n_frames, name)
   init_lr     = find_best_lr(wrapp, n_objs, im_dims, batch_size, mode=train_mode, custom=False, from_scratch=True)
   
