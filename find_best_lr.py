@@ -11,7 +11,7 @@ from dataset import BatchMaker
 from models  import *
 
 
-def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', custom=True, from_scratch=False):
+def find_best_lr(wrapp, n_objs, im_dims, batch_size, mode='decode', custom=True, from_scratch=False):
   
   # Simulation parameters
   n_samples = 100   # how many lrs are tried
@@ -41,7 +41,7 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
     os.mkdir('./%s' % (wrapp.model_name,))
 
   # Run batches with increasing learning rates
-  batch_maker = BatchMaker(mode, obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
+  batch_maker = BatchMaker(mode, n_objs, batch_size, wrapp.n_frames, im_dims)
   lrs         = []
   losses      = []
   for s in range(n_samples):
@@ -73,7 +73,6 @@ def find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode='decode', cu
 
 if __name__ == '__main__':
 
-  obj_type    = 'neil'       # can be 'ball' or 'neil' for now
   train_mode  = 'recons'     # can be 'recons' or 'decode'
   n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 1)  # image dimensions
@@ -82,5 +81,5 @@ if __name__ == '__main__':
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   decoder     = simple_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
-  init_lr     = find_best_lr(wrapp, obj_type, n_objs, im_dims, batch_size, mode=train_mode, custom=False, from_scratch=True)
+  init_lr     = find_best_lr(wrapp, n_objs, im_dims, batch_size, mode=train_mode, custom=False, from_scratch=True)
   

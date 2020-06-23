@@ -8,7 +8,7 @@ from dataset import BatchMaker
 from models import *
 
 
-def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False):
+def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False):
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
@@ -39,7 +39,7 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     os.mkdir('./%s' % (wrapp.model_name,))
 
   # Training loop for the decoder part
-  batch_maker  = BatchMaker('decode', 'neil', n_objs, batch_size, wrapp.n_frames, im_dims)
+  batch_maker  = BatchMaker('decode', n_objs, batch_size, wrapp.n_frames, im_dims)
   for _ in range(n_epochs):
     e = ckpt_decoder.optim.iterations//n_batches
 
@@ -75,7 +75,7 @@ def train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
 
 if __name__ == '__main__':
 
-  obj_type    = 'neil'       # can be 'ball' or 'neil' for now
+  crit_type   = 'entropy'    # can be 'entropy', 'entropy_threshold', 'prediction_error'
   n_objs      = 2            # number of moving object in each sample
   im_dims     = (64, 64, 1)  # image dimensions
   n_frames    = 10           # frames in the input sequences
@@ -85,5 +85,5 @@ if __name__ == '__main__':
   init_lr     = 1e-3         # first parameter to tune if does not work
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
   decoder     = conv_decoder()
-  wrapp       = Wrapper(model, my_recons, decoder, n_frames, name)
-  train_decode(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)
+  wrapp       = Wrapper(model, my_recons, decoder, crit_type, n_frames, name)
+  train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

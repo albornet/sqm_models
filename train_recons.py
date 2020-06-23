@@ -8,11 +8,11 @@ from dataset import BatchMaker
 from models import *
 
 
-def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False):
+def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False):
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
-    initial_learning_rate=init_lr, first_decay_steps=n_batches, t_mul=2.0, m_mul=0.95, alpha=0.3)
+    initial_learning_rate=init_lr, first_decay_steps=n_batches*n_epochs, t_mul=1.0, m_mul=1.0, alpha=0.3)
   optim = tf.keras.optimizers.Adam(sched)
   
   # Initialize checkpoint
@@ -35,14 +35,14 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
       os.mkdir('./%s' % (wrapp.model_name,))
   
   # Training loop for the reconstruction part
-  batch_maker = BatchMaker('recons', obj_type, n_objs, batch_size, wrapp.n_frames, im_dims)
-  for _ in range(n_epochs):
+  batch_maker = BatchMaker('recons', n_objs, batch_size, wrapp.n_frames, im_dims)
+  for e_ in range(n_epochs):
     e = ckpt_model.optim.iterations//n_batches
 
     # Train the model for one epoch
     mean_loss = 0.0
     for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
-      batch      = tf.stack(batch_maker.generate_batch(), axis=1)/255
+      batch      = tf.stack(batch_maker.generate_batch()[0], axis=1)/255
       rec_loss   = wrapp.train_step(batch, b, ckpt_model.optim)
       mean_loss += rec_loss
       print('\rRunning batch %02i/%02i' % (b+1, n_batches), end='')
@@ -55,7 +55,7 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
     ckpt_model.losses.assign_add(tf.Variable(loss_tens))
 
     # Save checkpoint if necessary
-    if e % 10 == 9:
+    if e % 10 == 9 or e_ == n_epochs - 1:
       mngr_model.save()
       print('\nModel checkpoint saved at %s' % (mngr_model.latest_checkpoint,))
 
@@ -65,14 +65,15 @@ def train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batch
 
 if __name__ == '__main__':
 
-  obj_type     = 'neil'       # can be 'ball' or 'neil' for now
-  n_objs       = 2            # number of moving object in each sample
-  im_dims      = (64, 64, 1)  # image dimensions
-  n_frames     = 3           # frames in the input sequences
-  n_epochs     = 20          # epochs ran IN ADDITION TO latest checkpoint epoch
-  batch_size   = 16           # sample sequences sent in parallel
-  n_batches    = 64           # batches per epoch
-  init_lr      = 2e-4         # first parameter to tune if does not work
+  crit_type    = 'entropy_thresh' # can be 'entropy', 'entropy_thresh', 'pred_error'
+  n_objs       = 2                # number of moving object in each sample
+  im_dims      = (64, 64, 1)      # image dimensions
+  n_frames     = [5, 8, 13, 20]   # number of frames in the input sequences (for each epoch block)
+  n_epochs     = 10               # epochs ran IN ADDITION TO latest checkpoint epoch
+  batch_size   = 16               # sample sequences sent in parallel
+  n_batches    = 64               # batches per epoch
+  init_lr      = 2e-4             # first parameter to tune if does not work
   model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
-  wrapp        = Wrapper(model, my_recons, None, n_frames, name)
-  train_recons(wrapp, obj_type, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)
+  for n in n_frames:
+    wrapp = Wrapper(model, my_recons, None, crit_type, n, name)
+    train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

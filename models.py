@@ -203,11 +203,12 @@ class SatLU(tf.keras.Model):
 # Wrapper class to combine core model, reconstructor and decoder
 class Wrapper(tf.keras.Model):
 
-  def __init__(self, model, reconstructor, decoder, n_frames, model_name):
+  def __init__(self, model, reconstructor, decoder, crit_type, n_frames, model_name):
     super(Wrapper, self).__init__()
     self.model         = model
     self.reconstructor = reconstructor
     self.decoder       = decoder
+    self.crit_type     = crit_type
     self.n_frames      = n_frames
     self.model_name    = model_name
     self.accuracy      = tf.keras.metrics.Accuracy()
@@ -236,31 +237,34 @@ class Wrapper(tf.keras.Model):
     return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
 
   def compute_dec_loss(self, labels, lat_var):
-    criterion = tf.keras.losses.BinaryCrossentropy()  # for the moment
+    loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
     targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
     weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
     losses    = tf.zeros(labels.shape)
     accurs    = 0.0
     for t in range(self.n_frames):
       decoding = tf.squeeze(self.decoder(lat_var[:, t]))
-      losses  += weights[t]*criterion(targets, decoding)
+      losses  += weights[t]*loss_func(targets, decoding)
       self.accuracy.update_state(labels, tf.argmax(decoding, 1))
       accurs  += self.accuracy.result()
     self.accuracy.reset_states()
     return accurs/self.n_frames, tf.reduce_sum(losses)/self.n_frames
 
-  def compute_entropy(self, x, layer=-1):
-    batch_size  = x.shape[0]
-    base_change = np.log(2.0)
-    epsilon     = 7./3 - 4./3 - 1  # smallest float value to handle 0*log(0) = 0
-    entropies   = np.zeros((batch_size, self.n_frames))
-    lat_vars    = self.model(x)[layer]
-    for b in range(batch_size):
-      for t in range(self.n_frames):
-        flat_vars       = tf.keras.backend.flatten(lat_vars[b, t]).numpy()
-        probs, _        = np.histogram(flat_vars, bins=100, range=(0.0, 1.0), density=True)
-        entropies[b, t] = -(probs*np.log(probs + epsilon)/base_change).sum()
-    return entropies
+  def compute_criterion(self, lat_var, crit_type):
+    batch_size = lat_var.shape[0]
+    criterion  = np.zeros((batch_size, self.n_frames))
+    if 'entropy' in crit_type:
+      base_change = np.log(2.0)
+      epsilon     = np.finfo(float).eps
+      hist_range  = (0.03, 6.0) if 'thresh' in crit_type else (-0.1, 6.0)
+      for b in range(batch_size):
+        for t in range(1, self.n_frames):
+          flat_var        = tf.keras.backend.flatten(lat_var[b, t]).numpy()
+          probs, _        = np.histogram(flat_var, bins=100, range=(0.03, 6.0), density=True)
+          criterion[b, t] = -(probs*np.log(probs + epsilon)/base_change).sum()
+    elif crit_type == 'pred_error':
+      criterion = lat_vars.numpy().sum(axis=(-1, -2, -3))  # sum over both space and feature dims
+    return criterion
 
   def train_step(self, x, b, opt, labels=None, layer_decod=-1):
 
@@ -268,8 +272,16 @@ class Wrapper(tf.keras.Model):
     if labels is not None:
       with tf.GradientTape() as tape:
         lat_var   = self.model(x)[layer_decod]
-        acc, loss = self.compute_dec_loss(labels, lat_var)
-        to_train  = self.decoder.trainable_variables
+        criterion = self.compute_criterion(lat_var, self.crit_type)
+        acc, loss = self.compute_dec_loss(labels, lat_var)  # this should take the criterion into account!
+      to_train  = self.decoder.trainable_variables
+      if b == 0:
+        self.plot_recons(x, sample_indexes=[0])
+        self.plot_results(range(1, self.n_frames), criterion[0, 1:],
+             'frame', 'criterion (%s)' % (self.crit_type), 'decode')
+        self.plot_distrubution_activities_lat_vars(x, show=False)
+        # self.plot_state_all_layers(x)
+        # self.plot_state_layer(x)
       
     # Run and record reconstruction
     else:
@@ -279,16 +291,13 @@ class Wrapper(tf.keras.Model):
         to_train = self.model.trainable_variables
       else:
         to_train = self.model.trainable_variables + self.reconstructor.trainable_variables
+      if b == 0:
+        self.plot_recons(x, sample_indexes=[0])
     
     # Apply gradient descent and return results for monitoring
     grad = tape.gradient(loss, to_train)
     opt.apply_gradients(zip(grad, to_train))
-    if b == 0:
-      self.plot_recons(x, sample_indexes=[0])
-      #self.plot_state_all_layers(x)
-      #self.plot_state_layer(x)
-      self.plot_entropies(x)
-      self.plot_distrubution_activities_lat_vars(x)
+
     if labels is not None:
       return acc, loss
     else:
@@ -300,8 +309,6 @@ class Wrapper(tf.keras.Model):
     return acc, loss
 
   def plot_recons(self, x, sample_indexes, show=False):
-
-    # Plot frames
     r  = tf.clip_by_value(self.get_reconstructions(x), 0.0, 1.0)
     t  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
     xr = tf.concat((x, t, r), axis=3)
@@ -314,11 +321,8 @@ class Wrapper(tf.keras.Model):
         ax2.imshow(tf.squeeze(r[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
       if show:
         plt.show()
-      else:
-        plt.savefig('./%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s))
+      plt.savefig('./%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s))
       plt.close()
-
-      # Plot gifs
       xr_frames = [tf.cast(255*xr[s, t], tf.uint8).numpy() for t in range(self.n_frames)]
       imageio.mimsave('./%s/latest_input_vs_prediction_%02i.gif' % (self.model_name, s), xr_frames, duration=0.1)
   
@@ -335,9 +339,21 @@ class Wrapper(tf.keras.Model):
       plt.show()
     plt.close()
 
-  def plot_state_all_layers(self, x):
+  def plot_distrubution_activities_lat_vars(self, x, layer=-1, show=False):
+    fig, axes = plt.subplots(self.n_frames, 1, figsize=(24, 24))
+    for t in range(1, self.n_frames):
+      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
+      axes[t].hist(flat_lat_vars, bins=100, range=(0.03, 6.0), density=True) 
+      axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
+      axes[t].grid()
+    fig.savefig('./%s/distribution_of_neuron_activities.png' % (self.model_name))
+    if show:
+      fig.show()
+    plt.close()
+
+  def plot_state_all_layers(self, x, show=False):
     fig, axes = plt.subplots(self.model.n_layers, 2, figsize=(16, self.model.n_layers * 4))
-    lat_vars = self.model(x)
+    lat_vars  = self.model(x)
     for layer in range(self.model.n_layers): # plot aussi les autres layers juste pour voir, même si on s'en fout un peu
       first_sample = np.mean(lat_vars[layer][0, :, :, :, :], axis=-1) # average over channels
       if layer > 0:
@@ -354,9 +370,12 @@ class Wrapper(tf.keras.Model):
         axes[layer, 1].plot(range(self.n_frames), first_sample[:, 0, :]) 
         axes[layer, 1].set(xlabel = 'Frame', ylabel = 'Layer ' + str(layer) + ' dim 2')
         axes[layer, 1].grid()
+    if show:
+      fig.show()
     fig.savefig('./%s/all_layers_vs_frames.png' % (self.model_name))
+    plt.close()
 
-  def plot_state_layer(self, x, layer=-1):
+  def plot_state_layer(self, x, layer=-1, show=False):
     lat_vars                 = self.model(x)[layer][0]     # sample 0 
     mean_sates_over_channels = np.mean(lat_vars, axis=-1)  # average over the channels
     n_vars                   = lat_vars.shape[1]*lat_vars.shape[2]
@@ -364,45 +383,12 @@ class Wrapper(tf.keras.Model):
     for t in range(1, self.n_frames): 
       flat_vars = tf.keras.backend.flatten(mean_sates_over_channels[t,:,:]).numpy()
       vars_to_plot[t-1,:] = flat_vars
-
     plt.figure()
     plt.ylabel('Latent variables')
     plt.xlabel('Frames')
     plt.plot(range(1, self.n_frames), vars_to_plot)
     plt.grid()
     plt.savefig('./%s/layers_vs_frames.png' % (self.model_name))
-    #plt.show()
+    if show:
+      plt.show()
     plt.close()
-
-  def compute_entropy(self, x, layer=-1):
-    entropies = []
-    #lat_vars  = self.model(x)[layer][0] # sample 0
-    for t in range(self.n_frames):
-      flat_lat_vars          = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
-      hist, bin_edges        = np.histogram(flat_lat_vars, bins=100, density=True)
-      ## Versions juste avec le bout de la distribution
-      #hist = hist[bin_edges[1:]>0.04] 
-      #hist, bin_edges         = np.histogram(flat_lat_vars[np.where(flat_lat_vars>0.04)], bins=100, density=True)
-      hist                   /= np.sum(hist)
-      entropy                 = -1.0*np.sum(hist * np.log(hist + np.finfo(float).eps))
-      entropies.append(entropy)
-    return entropies
-
-  def plot_entropies(self, x, layer=-1):
-    plt.figure()
-    plt.ylabel('Entropy')
-    plt.xlabel('Frame')
-    plt.plot(range(1, self.n_frames), self.compute_entropy(x, layer)[1:]) #, 'go', linewidth=2, markersize=6)
-    plt.grid()
-    plt.savefig('./%s/entropy_vs_frames.png' % (self.model_name))
-    plt.show()
-    plt.close()
-
-  def plot_distrubution_activities_lat_vars(self, x, layer=-1):
-    fig, axes = plt.subplots(self.n_frames, 1, figsize=(24, 24))
-    for t in range(self.n_frames):
-      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
-      axes[t].hist(flat_lat_vars, bins=100, range=(-0.075, 0.075), density=True)  #range=(np.amin(flat_lat_vars), np.amax(flat_lat_vars)))#range=(-0.075, 0.075)) 
-      axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
-      axes[t].grid()
-    fig.savefig('./%s/distribution_of_neuron_activities.png' % (self.model_name))
