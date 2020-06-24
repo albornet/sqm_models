@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from scipy.stats import entropy
+import scipy
 import matplotlib.pyplot as plt
 import imageio
 import numpy as np
@@ -236,7 +236,8 @@ class Wrapper(tf.keras.Model):
     frame_losses = [w*tf.reduce_sum((x[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
     return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
 
-  def compute_dec_loss(self, labels, lat_var):
+  """
+  def compute_dec_loss(self, labels, lat_var, criterion):
     loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
     targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
     weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
@@ -249,21 +250,61 @@ class Wrapper(tf.keras.Model):
       accurs  += self.accuracy.result()
     self.accuracy.reset_states()
     return accurs/self.n_frames, tf.reduce_sum(losses)/self.n_frames
+  """
+  
+  def compute_dec_loss(self, labels, lat_var, criterion):
+      loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
+      targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
+      #weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
 
-  def compute_criterion(self, lat_var, crit_type):
+      # First look for the "first" smooth region of the criterion curve 
+      variations                 = np.abs(np.diff(criterion[:, 1:], axis=-1))
+      thresh                     = 0.1*np.amax(variations)
+      variations_under_thresh    = (variations < thresh).astype(int)
+      window_size                = 3   # here look at a window of 3 frames
+      filter_                    = np.ones((1,window_size)) 
+      stable_frames = scipy.signal.convolve2d(variations_under_thresh, filter_, mode='same')
+      first_stable_frames        = np.ones(shape=criterion.shape[0], dtype=int)
+      for b in range(criterion.shape[0]):
+        for t in range(1, self.n_frames-2):
+          if stable_frames[b, t] == window_size:
+            first_stable_frames[b] += t
+            break
+      first_stable_frames[first_stable_frames == 1] = self.n_frames-window_size-1
+      
+      # Then look for the minimum of the derivative of the criterion in those regions
+      frames_to_decode = np.zeros(criterion.shape[0])
+      for b in range(criterion.shape[0]):
+        frames_to_decode[b] =   first_stable_frames[b] + np.argmin(np.abs(np.diff(criterion[b, first_stable_frames[b]:first_stable_frames[b]+window_size])))
+      print("  Frames to decode: ", frames_to_decode)
+      
+      # Derived from the previous criterias, select the frame to send to the decoder for each sample of the batch
+      indices_to_decode = tf.stack([tf.range(lat_var.shape[0]), frames_to_decode], axis=-1)
+      lat_var_to_decode = tf.gather_nd(lat_var, indices_to_decode)
+
+      # Decode and compute the loss & accuracy
+      decoding = tf.squeeze(self.decoder(lat_var_to_decode))
+      loss     = loss_func(targets, decoding)
+      self.accuracy.update_state(labels, tf.argmax(decoding, 1))
+      accur    = self.accuracy.result()
+      self.accuracy.reset_states()
+      return accur, loss
+  
+  
+  def compute_criterion(self, lat_var):
     batch_size = lat_var.shape[0]
     criterion  = np.zeros((batch_size, self.n_frames))
-    if 'entropy' in crit_type:
+    if 'entropy' in self.crit_type:
       base_change = np.log(2.0)
       epsilon     = np.finfo(float).eps
-      hist_range  = (0.03, 6.0) if 'thresh' in crit_type else (-0.1, 6.0)
+      hist_range  = (0.03, 6.0) if 'thresh' in self.crit_type else (-0.1, 6.0)
       for b in range(batch_size):
         for t in range(1, self.n_frames):
           flat_var        = tf.keras.backend.flatten(lat_var[b, t]).numpy()
-          probs, _        = np.histogram(flat_var, bins=100, range=(0.03, 6.0), density=True)
+          probs, _        = np.histogram(flat_var, bins=100, range=hist_range, density=True)
           criterion[b, t] = -(probs*np.log(probs + epsilon)/base_change).sum()
-    elif crit_type == 'pred_error':
-      criterion = lat_vars.numpy().sum(axis=(-1, -2, -3))  # sum over both space and feature dims
+    elif self.crit_type == 'pred_error':
+      criterion = lat_var.numpy().sum(axis=(-1, -2, -3))  # sum over both space and feature dims
     return criterion
 
   def train_step(self, x, b, opt, labels=None, layer_decod=-1):
@@ -272,8 +313,8 @@ class Wrapper(tf.keras.Model):
     if labels is not None:
       with tf.GradientTape() as tape:
         lat_var   = self.model(x)[layer_decod]
-        criterion = self.compute_criterion(lat_var, self.crit_type)
-        acc, loss = self.compute_dec_loss(labels, lat_var)  # this should take the criterion into account!
+        criterion = self.compute_criterion(lat_var)
+        acc, loss = self.compute_dec_loss(labels, lat_var, criterion)  # this should take the criterion into account!
       to_train  = self.decoder.trainable_variables
       if b == 0:
         self.plot_recons(x, sample_indexes=[0])
@@ -326,7 +367,7 @@ class Wrapper(tf.keras.Model):
       xr_frames = [tf.cast(255*xr[s, t], tf.uint8).numpy() for t in range(self.n_frames)]
       imageio.mimsave('./%s/latest_input_vs_prediction_%02i.gif' % (self.model_name, s), xr_frames, duration=0.1)
   
-  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode, show=False):
+  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode, show=True):
     plt.figure()
     plt.ylabel(y_val_name)
     plt.xlabel(x_val_name)
