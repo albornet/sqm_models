@@ -206,6 +206,7 @@ class Wrapper(tf.keras.Model):
   def __init__(self, model, reconstructor, decoder, crit_type, n_frames, model_name):
     super(Wrapper, self).__init__()
     self.model         = model
+    self.add_noise     = tf.keras.layers.GaussianNoise(0.1)
     self.reconstructor = reconstructor
     self.decoder       = decoder
     self.crit_type     = crit_type
@@ -217,7 +218,7 @@ class Wrapper(tf.keras.Model):
     if isinstance(self.model, PredNet):
         return self.model(x)[0]
     else:
-      x = tf.cast(x, tf.float32)
+      # x = tf.cast(x, tf.float32)
       states = self.model(x)
       recs   = []
       for t in range(self.n_frames):
@@ -225,7 +226,7 @@ class Wrapper(tf.keras.Model):
       return tf.stack(recs, axis=1)
   
   def compute_rec_loss(self, x):
-    recons  = self.get_reconstructions(x)
+    recons  = self.get_reconstructions(self.add_noise(x, True))
     weights = [1.0/(n+1) for n in range(self.n_frames-1)]  # first frame cannot be predicted
     if isinstance(self.model, PredNet):                    # nth PredNet output predicts nth frame
       if self.model.t_extrapolate < float('inf'):
@@ -290,7 +291,6 @@ class Wrapper(tf.keras.Model):
       self.accuracy.reset_states()
       return accur, loss
   
-  
   def compute_criterion(self, lat_var):
     batch_size = lat_var.shape[0]
     criterion  = np.zeros((batch_size, self.n_frames))
@@ -349,17 +349,17 @@ class Wrapper(tf.keras.Model):
     acc, loss = self.compute_dec_loss(labels, lat_var)
     return acc, loss
 
-  def plot_recons(self, x, sample_indexes, show=False):
+  def plot_recons(self, x, sample_indexes, show=False, noisy=True):
+    if noisy:
+      x = self.add_noise(x, True)
     r  = tf.clip_by_value(self.get_reconstructions(x), 0.0, 1.0)
     t  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
-    xr = tf.concat((x, t, r), axis=3)
+    xr = tf.clip_by_value(tf.concat((x, t, r), axis=3), 0.0, 1.0)
     for s in sample_indexes:
       f  = plt.figure(figsize=(int(self.n_frames*(x.shape[3] + 3)/32),int(2*(x.shape[2] + 3)/32)))
       for t in range(self.n_frames):
-        ax1 = f.add_subplot(2, self.n_frames+1, 0*(self.n_frames+1) + t + 1)
-        ax2 = f.add_subplot(2, self.n_frames+1, 1*(self.n_frames+1) + t + 1)
-        ax1.imshow(tf.squeeze(x[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
-        ax2.imshow(tf.squeeze(r[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
+        ax = f.add_subplot(self.n_frames+1, 0*(self.n_frames+1) + t + 1, 1)
+        ax.imshow(tf.squeeze(xr[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
       if show:
         plt.show()
       plt.savefig('./%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s))

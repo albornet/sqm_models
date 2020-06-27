@@ -66,8 +66,8 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 if __name__ == '__main__':
 
   crit_type    = 'entropy_thresh' # can be 'entropy', 'entropy_thresh', 'pred_error'
-  n_objs       = 2                # number of moving object in each sample
-  im_dims      = (64, 64, 1)      # image dimensions
+  n_objs       = 6                # number of moving object in each sample
+  im_dims      = (64, 64, 3)      # image dimensions
   n_frames     = [5, 8, 13, 20]   # number of frames in the input sequences (for each epoch block)
   n_epochs     = 10               # epochs ran IN ADDITION TO latest checkpoint epoch
   batch_size   = 16               # sample sequences sent in parallel

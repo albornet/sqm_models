@@ -2,7 +2,8 @@
 import numpy as np
 from numpy.random import RandomState as rng
 from skimage.draw import circle, ellipse, rectangle, polygon
-from skimage.transform import rotate
+# from skimage.morphology import square, rectangle, diamond, disk, octagon, star
+from skimage.transform import resize, rotate
 
 
 # Neil class
@@ -19,8 +20,8 @@ class Neil():
 			vx         = rng().uniform(-5*scl, 5*scl,   (1, batch_s))
 			vy         = rng().uniform(-5*scl, 5*scl,   (1, batch_s))
 			self.ori   = rng().uniform(0, 2*np.pi,      (1, batch_s))
-			self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1, batch_s))
-			self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1, batch_s))
+			self.sizx  = rng().uniform(wn_w/10, wn_w/2, (1, batch_s))  # max: /4
+			self.sizy  = rng().uniform(wn_w/10, wn_w/2, (1, batch_s))  # max: /4
 			self.colr  = rng().randint(100, 255,        (c, batch_s))
 			self.pop_t = rng().randint(0, n_frames//2,  (1, batch_s))
 		if set_type == 'sqm':
@@ -145,7 +146,7 @@ class BatchMaker():
 		self.set_type   = set_type
 		self.Object     = Neil  # for now
 		self.n_objects  = n_objects
-		self.n_max_occl = 4
+		self.n_max_occl = 0
 		self.condition  = condition if condition != 'V' else 'V0'  # coding detail
 		self.batch_s    = batch_s
 		self.n_frames   = n_frames
@@ -173,7 +174,7 @@ class BatchMaker():
 				self.window[b, :, :, c] = self.bg_color[b, c]
 
 		# Occluding walls in the frontground
-		n_occl        = rng().randint(0, self.n_max_occl, (self.batch_s)) if self.set_type == 'recons' else [0]*self.batch_s
+		n_occl        = rng().randint(0, self.n_max_occl+1, (self.batch_s)) if self.set_type == 'recons' else [0]*self.batch_s
 		self.frnt_grd = np.zeros(self.window.shape, dtype=bool)
 		for b in range(self.batch_s):
 			for _ in range(n_occl[b]):
