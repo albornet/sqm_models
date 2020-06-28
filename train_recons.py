@@ -73,7 +73,7 @@ if __name__ == '__main__':
   batch_size   = 16               # sample sequences sent in parallel
   n_batches    = 64               # batches per epoch
   init_lr      = 2e-4             # first parameter to tune if does not work
-  model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
+  model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
   for n in n_frames:
     wrapp = Wrapper(model, my_recons, None, crit_type, n, name)
     train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

@@ -240,7 +240,7 @@ class Wrapper(tf.keras.Model):
   """
   def compute_dec_loss(self, labels, lat_var, criterion):
     loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
-    targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
+    targets   = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
     weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
     losses    = tf.zeros(labels.shape)
     accurs    = 0.0
@@ -254,42 +254,29 @@ class Wrapper(tf.keras.Model):
   """
   
   def compute_dec_loss(self, labels, lat_var, criterion):
-      loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
-      targets   = tf.one_hot(labels, 2)                 # Crossentropy needs one_hot
-      #weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
 
-      # First look for the "first" smooth region of the criterion curve 
-      variations                 = np.abs(np.diff(criterion[:, 1:], axis=-1))
-      thresh                     = 0.1*np.amax(variations)
-      variations_under_thresh    = (variations < thresh).astype(int)
-      window_size                = 3   # here look at a window of 3 frames
-      filter_                    = np.ones((1,window_size)) 
-      stable_frames = scipy.signal.convolve2d(variations_under_thresh, filter_, mode='same')
-      first_stable_frames        = np.ones(shape=criterion.shape[0], dtype=int)
-      for b in range(criterion.shape[0]):
-        for t in range(1, self.n_frames-2):
-          if stable_frames[b, t] == window_size:
-            first_stable_frames[b] += t
-            break
-      first_stable_frames[first_stable_frames == 1] = self.n_frames-window_size-1
+    # Find first frames for which dynamics are stabilized
+    batch_size  = lat_var.shape[0]
+    loss_func   = tf.keras.losses.BinaryCrossentropy()  # for the moment
+    targets     = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
+    criterion   = criterion[:, 1:]
+    crit_grad   = np.abs(np.gradient(criterion, axis=1))
+    smooth_grad = scipy.signal.convolve2d(crit_grad, np.ones((1, 3)), mode='same')
+    threshold   = [1.0]*batch_size  # 0.1*np.max(smooth_grad, axis=1)
+    crit_frames = 1 + np.array([np.argmax(g < t) for g, t in zip(smooth_grad, threshold)])
+    crit_frames[crit_frames == 1] = self.n_frames-1
       
-      # Then look for the minimum of the derivative of the criterion in those regions
-      frames_to_decode = np.zeros(criterion.shape[0])
-      for b in range(criterion.shape[0]):
-        frames_to_decode[b] =   first_stable_frames[b] + np.argmin(np.abs(np.diff(criterion[b, first_stable_frames[b]:first_stable_frames[b]+window_size])))
-      print("  Frames to decode: ", frames_to_decode)
-      
-      # Derived from the previous criterias, select the frame to send to the decoder for each sample of the batch
-      indices_to_decode = tf.stack([tf.range(lat_var.shape[0]), frames_to_decode], axis=-1)
-      lat_var_to_decode = tf.gather_nd(lat_var, indices_to_decode)
+    # For each batch sample, select the frame at which all information is sent 
+    indices_to_decode = tf.stack([tf.range(batch_size), crit_frames], axis=-1)
+    lat_var_to_decode = tf.gather_nd(lat_var, indices_to_decode)
 
-      # Decode and compute the loss & accuracy
-      decoding = tf.squeeze(self.decoder(lat_var_to_decode))
-      loss     = loss_func(targets, decoding)
-      self.accuracy.update_state(labels, tf.argmax(decoding, 1))
-      accur    = self.accuracy.result()
-      self.accuracy.reset_states()
-      return accur, loss
+    # Decode and compute loss & accuracy
+    decoding = tf.squeeze(self.decoder(lat_var_to_decode))
+    loss     = loss_func(targets, decoding)
+    self.accuracy.update_state(labels, tf.argmax(decoding, 1))
+    accur    = self.accuracy.result()
+    self.accuracy.reset_states()
+    return accur, loss
   
   def compute_criterion(self, lat_var):
     batch_size = lat_var.shape[0]
@@ -338,7 +325,6 @@ class Wrapper(tf.keras.Model):
     # Apply gradient descent and return results for monitoring
     grad = tape.gradient(loss, to_train)
     opt.apply_gradients(zip(grad, to_train))
-
     if labels is not None:
       return acc, loss
     else:

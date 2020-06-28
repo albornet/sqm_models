@@ -61,7 +61,7 @@ if __name__ == '__main__':
   n_tries     = 2            # number of tests
   batch_size  = 16           # sample sequences sent in parallel
   n_batches   = 4            # batches per try
-  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
+  model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
   decoder     = conv_decoder()
   wrapp       = Wrapper(model, my_recons, decoder, crit_type, n_frames, name)
   test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition, n_tries)
