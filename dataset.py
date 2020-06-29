@@ -20,8 +20,8 @@ class Neil():
 			vx         = rng().uniform(-5*scl, 5*scl,   (1, batch_s))
 			vy         = rng().uniform(-5*scl, 5*scl,   (1, batch_s))
 			self.ori   = rng().uniform(0, 2*np.pi,      (1, batch_s))
-			self.sizx  = rng().uniform(wn_w/10, wn_w/2, (1, batch_s))  # max: /4
-			self.sizy  = rng().uniform(wn_w/10, wn_w/2, (1, batch_s))  # max: /4
+			self.sizx  = rng().uniform(wn_w/10, wn_w/4, (1, batch_s))  # max: /4
+			self.sizy  = rng().uniform(wn_w/10, wn_w/4, (1, batch_s))  # max: /4
 			self.colr  = rng().randint(100, 255,        (c, batch_s))
 			self.pop_t = rng().randint(0, n_frames//2,  (1, batch_s))
 		if set_type == 'sqm':
