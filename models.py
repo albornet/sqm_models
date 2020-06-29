@@ -215,6 +215,9 @@ class Wrapper(tf.keras.Model):
     self.model_name    = model_name
     self.accuracy      = tf.keras.metrics.Accuracy()
 
+  def set_noise(self, noise_lvl):
+    self.add_noise = tf.keras.layers.GaussianNoise(noise_lvl)
+
   def get_reconstructions(self, x):
     if isinstance(self.model, PredNet):
         return self.model(x)[0]
