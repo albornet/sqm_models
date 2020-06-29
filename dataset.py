@@ -37,7 +37,7 @@ class Neil():
 			self.colr  = np.ones((c, batch_s), dtype=int)*255
 			self.pop_t = np.ones((1, batch_s), dtype=int)*3
 		self.shape  = rng().choice( choices, (1, batch_s))
-		self.side   = rng().randint(0, 2, (1, batch_s)) if objects == [] else objects[0].side
+		self.side   = rng().randint(0, 2, (1, batch_s)) if len(objects) == 0 else objects[0].side
 		self.side_  = 1*self.side                   # evolving value for sqm (deep copy)
 		self.popped = np.array([[False]*batch_s])   # display stimulus or not
 		self.sizx[self.shape == 'vernier'] /= 1.5   # verniers look better if not too wide
@@ -68,21 +68,23 @@ class Neil():
 					side    =       self.side[0, b]
 					v_siz_w =  1 +  self.sizx[0, b]//4
 					v_siz_h =  1 +  self.sizy[0, b]//3
-					v_off_w = (1 + (self.sizx[0, b] - v_siz_w)//4 )*2
-					v_off_h = (1 + (self.sizy[0, b] - v_siz_h)//20)*2 + v_siz_h//2
+					v_off_w = (1 + (self.sizx[0, b] - v_siz_w)//3)*2
+					v_off_h = (1 + (self.sizy[0, b] - v_siz_h)//6)*2 + v_siz_h//2
 				else:
 					side    = rng().randint(0, 2) if set_type == 'recons' else self.side[0, b]
 					v_siz_w = rng().uniform(1 + self.sizx[0, b]//6, 1 + self.sizx[0, b]//2)
 					v_siz_h = rng().uniform(1 + self.sizy[0, b]//4, 1 + self.sizy[0, b]//2)
 					v_off_w = rng().uniform(1,              1 + (self.sizx[0, b] - v_siz_w)//2)*2
 					v_off_h = rng().uniform(1 + v_siz_h//2, 1 + (self.sizy[0, b] - v_siz_h)//2)*2
+					if len(objects) > 0 and set_type == 'decode':
+						v_off_w = 0.0  # only one vernier (the first in the list) has an offset in decode mode
 				start1     = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - v_off_w - v_siz_w)//2))
 				start2     = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + v_off_w - v_siz_w)//2))
 				start01    = (int((max_s - v_off_h - v_siz_h)//2), int((max_s - 0       - v_siz_w)//2))
 				start02    = (int((max_s + v_off_h - v_siz_h)//2), int((max_s + 0       - v_siz_w)//2))
 				extent     = (int(v_siz_h), int(v_siz_w))
-				rr1,  cc1  = rectangle(start=start1, extent=extent, shape=patch.shape)
-				rr2,  cc2  = rectangle(start=start2, extent=extent, shape=patch.shape)
+				rr1,  cc1  = rectangle(start=start1,  extent=extent, shape=patch.shape)
+				rr2,  cc2  = rectangle(start=start2,  extent=extent, shape=patch.shape)
 				rr01, cc01 = rectangle(start=start01, extent=extent, shape=patch.shape)
 				rr02, cc02 = rectangle(start=start02, extent=extent, shape=patch.shape)
 				patch[  rr1,  cc1 ] = 255
@@ -150,7 +152,6 @@ class BatchMaker():
 		self.condition  = condition if condition != 'V' else 'V0'  # coding detail
 		self.batch_s    = batch_s
 		self.n_frames   = n_frames
-		self.noise_lvl  = int(0.1*255)
 		self.n_chans    = im_dims[-1]
 		self.scale      = max(im_dims[0], im_dims[1])/64
 		self.wn_h       = int(im_dims[0]*self.scale)
@@ -202,9 +203,8 @@ class BatchMaker():
 				obj.update_states(self.batch_s, self.friction)
 
 			# Add noise and black frontground walls
-			noise = np.random.randint(-self.noise_lvl//2, self.noise_lvl//2, self.window.shape)
 			frame[self.frnt_grd] = 0.0
-			self.batch.append((frame + noise).clip(0, 255).astype(np.uint8))
+			self.batch.append(frame.clip(0, 255).astype(np.uint8))
 
 		# Return batch (and labels)
 		if self.set_type == 'recons':

@@ -45,12 +45,12 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
       batch      = batch_maker.generate_batch()[0]
       rec_loss   = wrapp.train_step(tf.stack(batch, axis=1)/255, b, ckpt_model.optim)
       mean_loss += rec_loss
-      print('\rRunning batch %02i/%02i' % (b+1, n_batches), end='')
+      print('\r  Running batch %02i/%02i' % (b+1, n_batches), end='')
 
     # Record loss for this epoch
     mean_loss = mean_loss/n_batches
     lr_str    = "{:.2e}".format(ckpt_model.optim._decayed_lr(tf.float32).numpy())
-    print('\n  Finishing epoch %03i, lr = %s, loss = %.3f' % (e, lr_str, mean_loss))
+    print('\nFinishing epoch %03i, lr = %s, loss = %.3f' % (e, lr_str, mean_loss))
     loss_tens = tf.concat([tf.zeros((e,)), mean_loss*tf.ones((1,)), tf.zeros((1000-e-1,))], axis=0)
     ckpt_model.losses.assign_add(tf.Variable(loss_tens))
 
@@ -65,15 +65,17 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
 if __name__ == '__main__':
 
-  crit_type    = 'entropy_thresh' # can be 'entropy', 'entropy_thresh', 'pred_error'
-  n_objs       = 6                # number of moving object in each sample
-  im_dims      = (64, 64, 3)      # image dimensions
-  n_frames     = [5, 8, 13, 20]   # number of frames in the input sequences (for each epoch block)
-  n_epochs     = 10               # epochs ran IN ADDITION TO latest checkpoint epoch
-  batch_size   = 16               # sample sequences sent in parallel
-  n_batches    = 64               # batches per epoch
-  init_lr      = 2e-4             # first parameter to tune if does not work
+  crit_type    = 'entropy_thresh'  # can be 'entropy', 'entropy_thresh', 'pred_error'
+  n_objs       = 6                 # number of moving object in each sample
+  noise_lvl    = 0.9               # amount of noise added to the input
+  im_dims      = (64, 64, 3)       # image dimensions
+  n_frames     = [5, 8, 13, 20]    # number of frames in the input sequences (for each epoch block)
+  n_epochs     = 10                # epochs ran IN ADDITION TO latest checkpoint epoch
+  batch_size   = 16                # sample sequences sent in parallel
+  n_batches    = 64                # batches per epoch
+  init_lr      = 2e-4              # first parameter to tune if does not work
   model, name  = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
+  recons       = None
   for n in n_frames:
-    wrapp = Wrapper(model, my_recons, None, crit_type, n, name)
+    wrapp = Wrapper(model, recons, None, noise_lvl, crit_type, n, name)
     train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

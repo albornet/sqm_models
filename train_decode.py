@@ -51,13 +51,13 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
       acc, loss     = wrapp.train_step(tf.stack(batch, axis=1)/255, b, ckpt_decoder.optim, labels, -1)
       mean_loss    += loss
       mean_acc     += acc
-      print('\rRunning batch %02i/%02i' % (b+1, n_batches), end='')
+      print('\r  Running batch %02i/%02i' % (b+1, n_batches), end='')
 
     # Record loss for this epoch
     mean_loss = mean_loss/n_batches
     mean_acc  = mean_acc /n_batches
     lr_str = "{:.2e}".format(ckpt_decoder.optim._decayed_lr(tf.float32).numpy())
-    print('\n  Finishing epoch %03i, lr = %s, accuracy = %.3f, loss = %.3f' % (e, lr_str, mean_acc, mean_loss))
+    print('\nFinishing epoch %03i, lr = %s, accuracy = %.3f, loss = %.3f' % (e, lr_str, mean_acc, mean_loss))
     loss_tens = tf.concat([tf.zeros((e,)), mean_loss*tf.ones((1,)), tf.zeros((1000-e-1,))], axis=0)
     acc_tens  = tf.concat([tf.zeros((e,)), mean_acc *tf.ones((1,)), tf.zeros((1000-e-1,))], axis=0)
     ckpt_decoder.losses.assign_add(tf.Variable(loss_tens))
@@ -77,6 +77,7 @@ if __name__ == '__main__':
 
   crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error'
   n_objs      = 2                 # number of moving object in each sample
+  noise_lvl   = 0.3               # amount of noise added to the input (from 0.0 to 1.0)
   im_dims     = (64, 64, 3)       # image dimensions
   n_frames    = 13                # frames in the input sequences
   n_epochs    = 100               # epochs ran IN ADDITION TO latest checkpoint epoch
@@ -84,6 +85,7 @@ if __name__ == '__main__':
   n_batches   = 64                # batches per epoch
   init_lr     = 1e-3              # first parameter to tune if does not work
   model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
-  decoder     = conv_decoder()
-  wrapp       = Wrapper(model, my_recons, decoder, crit_type, n_frames, name)
+  recons      = None
+  decoder     = simple_decoder()
+  wrapp       = Wrapper(model, recons, decoder, noise_lvl, crit_type, n_frames, name)
   train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)

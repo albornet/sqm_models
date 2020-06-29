@@ -11,7 +11,8 @@ import numpy as np
 ######################
 
 # Simple "deconvolution" reconstructor
-my_recons = tf.keras.Sequential(
+def simple_recons():
+  return tf.keras.Sequential(
     [tf.keras.layers.Dense(4*8*32),
      tf.keras.layers.Reshape((4,8,32)),
      tf.keras.layers.Conv2DTranspose(16, (5,5), strides=(1,1), padding='same', activation='relu'),
@@ -203,10 +204,10 @@ class SatLU(tf.keras.Model):
 # Wrapper class to combine core model, reconstructor and decoder
 class Wrapper(tf.keras.Model):
 
-  def __init__(self, model, reconstructor, decoder, crit_type, n_frames, model_name):
+  def __init__(self, model, reconstructor, decoder, noise_lvl, crit_type, n_frames, model_name):
     super(Wrapper, self).__init__()
     self.model         = model
-    self.add_noise     = tf.keras.layers.GaussianNoise(0.1)
+    self.add_noise     = tf.keras.layers.GaussianNoise(noise_lvl)
     self.reconstructor = reconstructor
     self.decoder       = decoder
     self.crit_type     = crit_type
@@ -301,12 +302,12 @@ class Wrapper(tf.keras.Model):
       with tf.GradientTape() as tape:
         lat_var   = self.model(x)[layer_decod]
         criterion = self.compute_criterion(lat_var)
-        acc, loss = self.compute_dec_loss(labels, lat_var, criterion)  # this should take the criterion into account!
+        acc, loss = self.compute_dec_loss(labels, lat_var, criterion)
       to_train  = self.decoder.trainable_variables
       if b == 0:
         self.plot_recons(x, sample_indexes=[0])
         self.plot_results(range(1, self.n_frames), criterion[0, 1:],
-             'frame', 'criterion (%s)' % (self.crit_type), 'decode')
+          'frame', 'criterion (%s)' % (self.crit_type), 'decode')
         self.plot_distrubution_activities_lat_vars(x, show=False)
         # self.plot_state_all_layers(x)
         # self.plot_state_layer(x)
@@ -330,9 +331,14 @@ class Wrapper(tf.keras.Model):
     else:
       return loss
     
-  def test_step(self, x, labels, layer_decod=-1):
+  def test_step(self, x, b, labels, layer_decod=-1):
     lat_var   = self.model(x)[layer_decod]
-    acc, loss = self.compute_dec_loss(labels, lat_var)
+    criterion = self.compute_criterion(lat_var)
+    acc, loss = self.compute_dec_loss(labels, lat_var, criterion)
+    if b == 0:
+      self.plot_recons(x, sample_indexes=[0])
+      self.plot_results(range(1, self.n_frames), criterion[0, 1:],
+        'frame', 'criterion (%s)' % (self.crit_type), 'decode')
     return acc, loss
 
   def plot_recons(self, x, sample_indexes, show=False, noisy=True):
@@ -342,18 +348,20 @@ class Wrapper(tf.keras.Model):
     t  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
     xr = tf.clip_by_value(tf.concat((x, t, r), axis=3), 0.0, 1.0)
     for s in sample_indexes:
-      f  = plt.figure(figsize=(int(self.n_frames*(x.shape[3] + 3)/32),int(2*(x.shape[2] + 3)/32)))
+      f  = plt.figure(figsize=(int(2*(x.shape[2] + 3)/32), int(self.n_frames*(x.shape[3] + 3)/32)))
       for t in range(self.n_frames):
-        ax = f.add_subplot(self.n_frames+1, 0*(self.n_frames+1) + t + 1, 1)
+        ax = f.add_subplot(self.n_frames+1, 1, 0*(self.n_frames+1) + t + 1)
         ax.imshow(tf.squeeze(xr[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
       if show:
         plt.show()
-      plt.savefig('./%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s))
+      img_name = './%s/latest_input_vs_prediction_epoch_%02i.png' % (self.model_name, s)
+      gif_name = './%s/latest_input_vs_prediction_epoch_%02i.gif' % (self.model_name, s)
+      plt.savefig(img_name)
       plt.close()
       xr_frames = [tf.cast(255*xr[s, t], tf.uint8).numpy() for t in range(self.n_frames)]
-      imageio.mimsave('./%s/latest_input_vs_prediction_%02i.gif' % (self.model_name, s), xr_frames, duration=0.1)
+      imageio.mimsave(gif_name, xr_frames, duration=0.1)
   
-  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode, show=True):
+  def plot_results(self, x_vals, y_vals, x_val_name, y_val_name, mode, show=False):
     plt.figure()
     plt.ylabel(y_val_name)
     plt.xlabel(x_val_name)
@@ -381,7 +389,7 @@ class Wrapper(tf.keras.Model):
   def plot_state_all_layers(self, x, show=False):
     fig, axes = plt.subplots(self.model.n_layers, 2, figsize=(16, self.model.n_layers * 4))
     lat_vars  = self.model(x)
-    for layer in range(self.model.n_layers): # plot aussi les autres layers juste pour voir, même si on s'en fout un peu
+    for layer in range(self.model.n_layers):
       first_sample = np.mean(lat_vars[layer][0, :, :, :, :], axis=-1) # average over channels
       if layer > 0:
         axes[layer, 0].plot(range(self.n_frames), 100*first_sample[:, :, 0]) 
