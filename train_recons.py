@@ -12,7 +12,7 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
-    initial_learning_rate=init_lr, first_decay_steps=n_batches*n_epochs, t_mul=1.0, m_mul=1.0, alpha=0.3)
+    initial_learning_rate=init_lr, first_decay_steps=n_batches*n_epochs, t_mul=1.0, m_mul=1.0, alpha=1.0)
   optim = tf.keras.optimizers.Adam(sched)
   
   # Initialize checkpoint

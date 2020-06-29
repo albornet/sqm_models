@@ -12,7 +12,7 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
   # Learning devices
   sched = tf.keras.experimental.CosineDecayRestarts(
-    initial_learning_rate=init_lr, first_decay_steps=n_batches, t_mul=2.0, m_mul=0.95, alpha=0.3)
+    initial_learning_rate=init_lr, first_decay_steps=n_batches, t_mul=1.0, m_mul=1.0, alpha=1.0)
   optim = tf.keras.optimizers.Adam(sched)
 
   # Checkpoint (save and load model weights and accuracies)
