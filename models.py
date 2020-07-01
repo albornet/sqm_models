@@ -6,6 +6,20 @@ import imageio
 import numpy as np
 
 
+###############################
+### Learning rate scheduler ###
+###############################
+
+# Custom scheduler (lr gets 10 times smaller after half of the epochs)
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  def __init__(self, lr, n_epochs, n_batches):
+    super(CustomSchedule, self).__init__()
+    self.dt = n_epochs*n_batches
+    self.lr = dt
+  def __call__(self, step):
+    return self.lr if 0 < (step % self.dt) <= self.dt/2 else self.lr/10
+
+
 ######################
 ### Reconstructors ###
 ######################
@@ -110,19 +124,10 @@ class PredNet(tf.keras.Model):
       cell = tf.keras.layers.ConvLSTM2D(filters=self.r_channels[i], kernel_size=(3,3), return_sequences=True, stateful=True, padding='same')
       setattr(self, 'cell{}'.format(i), cell)
 
-    # for i in range(self.n_layers):
-    #   conv = tf.keras.layers.Conv2D(filters=self.a_channels[i], kernel_size=(3,3), padding='same', activation='relu')
-    #   if i == 0:
-    #     conv = tf.keras.Sequential([conv, SatLU()])
-    #   setattr(self, 'conv{}'.format(i), conv)
     for i in range(self.n_layers):
-      conv = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(filters=self.a_channels[i], kernel_size=(3,3), padding='same', activation='relu'),
-        tf.keras.layers.BatchNormalization()])
+      conv = tf.keras.layers.Conv2D(filters=self.a_channels[i], kernel_size=(3,3), padding='same', activation='relu')
       if i == 0:
-        conv = tf.keras.Sequential([
-          tf.keras.Sequential([conv, SatLU()]),
-          tf.keras.layers.BatchNormalization()])
+        conv = tf.keras.Sequential([conv, SatLU()])
       setattr(self, 'conv{}'.format(i), conv)
 
     self.upsample = tf.keras.layers.UpSampling2D(size=(2,2))
@@ -137,7 +142,7 @@ class PredNet(tf.keras.Model):
   def call(self, x):
 
     R_seq = [None]*self.n_layers
-    H_seq = [None]*self.n_layers
+    # H_seq = [None]*self.n_layers  # not used in tensorflow (internal state of R_seq)
     E_seq = [None]*self.n_layers
     state = [None]*self.n_layers
 
@@ -163,8 +168,8 @@ class PredNet(tf.keras.Model):
             cell.reset_states()  # first time step does not want last state of previous sequence
           except TypeError:
             pass
-        E    = tf.expand_dims(E_seq[l], axis=1)
-        R    = R_seq[l]
+        E = tf.expand_dims(E_seq[l], axis=1)
+        R = R_seq[l]
         if l == self.n_layers - 1:
           R = cell(E)
         else:
