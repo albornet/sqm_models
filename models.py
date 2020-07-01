@@ -15,7 +15,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
   def __init__(self, lr, n_epochs, n_batches):
     super(CustomSchedule, self).__init__()
     self.dt = n_epochs*n_batches
-    self.lr = dt
+    self.lr = lr
   def __call__(self, step):
     return self.lr if 0 < (step % self.dt) <= self.dt/2 else self.lr/10
 
