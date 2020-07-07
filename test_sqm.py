@@ -41,7 +41,7 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
     acc, loss     = wrapp.test_step(tf.stack(batch, axis=1)/255, b, labels, -1)
     mean_loss    += loss
     mean_acc     += acc
-    print('\nCond. %s, batch %2i/%2i...' % (condition, b+1, n_batches), end='')
+    print('\rRunning condition %s, batch %2i/%2i' % (condition, b+1, n_batches), end='')
   mean_loss = mean_loss/n_batches
   mean_acc  = mean_acc /n_batches
   print('\nCondition %6s: mean accuracy = %.3f, mean loss = %.3f' % (condition, mean_acc, mean_loss))
