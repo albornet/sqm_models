@@ -32,11 +32,11 @@ noise_lvl_recons = 0.9               # amount of noise added to reconstruction s
 noise_lvl_decode = 0.1               # amount of noise added to decoding set samples
 noise_lvl_sqm    = 0.1               # amount of noise added to sqm samples
 init_lr_recons   = 5e-4              # first parameter to tune if does not work
-init_lr_decode   = 1e-5              # first parameter to tune if does not work
-do_train_recons  = False
-do_train_decode  = True
-do_test_sqm      = True
+init_lr_decode   = 1e-6              # first parameter to tune if does not work
 do_find_best_lr  = False
+do_train_recons  = False
+do_train_decode  = False
+do_test_sqm      = True
 
 # Models and wrapper
 model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
@@ -63,9 +63,19 @@ if do_train_decode:
 
 # Test model on SQM paradigm
 if do_test_sqm:
-  wrapp.n_frames = n_frames_sqm
+  final_accuracies = {'V': [], 'P': [], 'A': []}
+  wrapp.n_frames   = n_frames_sqm
   wrapp.set_noise(noise_lvl_sqm)
-  test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, 'V')
-  for sec_frame in range(3, n_frames_sqm):
-    test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, 'V-PV' + str(sec_frame))
-    test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, 'V-AV' + str(sec_frame))
+  plt.figure()
+  plt.title('SQM results')
+  for cond in final_accuracies.keys():
+    if cond == 'V':
+      final_accuracies[cond].append(test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, cond))
+      plt.hlines(final_accuracies[cond], 0, n_frames_sqm-4, colors='k', linestyles='dashed', label=cond)
+    else:
+      for sec_frame in range(3, n_frames_sqm):
+        this_cond = 'V-%sV%s' % (cond, sec_frame)
+        final_accuracies[cond].append((sec_frame-3, test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, this_cond)))
+      plt.plot([a[0] for a in final_accuracies[cond]], [a[1] for a in final_accuracies[cond]], label=cond)
+  plt.legend()
+  plt.show()
