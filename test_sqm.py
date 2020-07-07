@@ -20,14 +20,15 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
   # Try to load latest checkpoints 
   ckpt_model  .restore(mngr_model  .latest_checkpoint).expect_partial()
   ckpt_decoder.restore(mngr_decoder.latest_checkpoint).expect_partial()
-  if mngr_model.latest_checkpoint:
-    print('\nReconstruction model loaded from %s\n' % (mngr_model.latest_checkpoint))
-  else:
-    print('\nWarning: your reconstruction model is not trained yet. Loading from scratch\n')
-  if mngr_decoder.latest_checkpoint:
-    print('Decoder restored from %s\n' % (mngr_decoder.latest_checkpoint))
-  else:
-    print('Warning: your decoder is not trained yet. Loading from scratch\n')
+  if condition == 'V':  # to only write once
+    if mngr_model.latest_checkpoint:
+      print('\nReconstruction model loaded from %s\n' % (mngr_model.latest_checkpoint))
+    else:
+      print('\nWarning: your reconstruction model is not trained yet. Loading from scratch\n')
+    if mngr_decoder.latest_checkpoint:
+      print('Decoder restored from %s\n' % (mngr_decoder.latest_checkpoint))
+    else:
+      print('Warning: your decoder is not trained yet. Loading from scratch\n')
   if not os.path.exists('./%s' % (wrapp.model_name,)):
     os.mkdir('./%s' % (wrapp.model_name,))
 
