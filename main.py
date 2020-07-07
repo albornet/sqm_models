@@ -73,9 +73,9 @@ if do_test_sqm:
       final_accuracies[cond].append(test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, cond))
       plt.hlines(final_accuracies[cond], 0, n_frames_sqm-4, colors='k', linestyles='dashed', label=cond)
     else:
-      for sec_frame in range(3, n_frames_sqm):
+      for sec_frame in range(1, n_frames_sqm-3):
         this_cond = 'V-%sV%s' % (cond, sec_frame)
-        final_accuracies[cond].append((sec_frame-3, test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, this_cond)))
+        final_accuracies[cond].append((sec_frame, test_sqm(wrapp, n_objs_sqm, im_dims, batch_size, n_batches, this_cond)))
       plt.plot([a[0] for a in final_accuracies[cond]], [a[1] for a in final_accuracies[cond]], label=cond)
   plt.legend()
   plt.show()

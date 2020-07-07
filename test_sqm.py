@@ -7,7 +7,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
 from dataset import BatchMaker
 from models import *
 
-def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
+def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, cond):
 
   # Checkpoint (save and load model weights and accuracies)
   model_dir    = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
@@ -20,7 +20,7 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
   # Try to load latest checkpoints 
   ckpt_model  .restore(mngr_model  .latest_checkpoint).expect_partial()
   ckpt_decoder.restore(mngr_decoder.latest_checkpoint).expect_partial()
-  if condition == 'V':  # to only write once
+  if cond == 'V':  # to only write once
     if mngr_model.latest_checkpoint:
       print('\nReconstruction model loaded from %s\n' % (mngr_model.latest_checkpoint))
     else:
@@ -33,7 +33,7 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
     os.mkdir('./%s' % (wrapp.model_name,))
 
   # Test loop
-  batch_maker = BatchMaker('sqm', n_objs, batch_size, wrapp.n_frames, im_dims, condition)
+  batch_maker = BatchMaker('sqm', n_objs, batch_size, wrapp.n_frames, im_dims, cond)
   mean_loss   = 0.0
   mean_acc    = 0.0
   for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
@@ -41,10 +41,11 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
     acc, loss     = wrapp.test_step(tf.stack(batch, axis=1)/255, b, labels, -1)
     mean_loss    += loss
     mean_acc     += acc
-    print('\rRunning condition %s, batch %2i/%2i...' % (condition, b+1, n_batches))
+    end           = '' if b+1 < n_batches else '\n'
+    print('\nCond. %s, batch %2i/%2i...' % (cond, b+1, n_batches), end=end)
   mean_loss = mean_loss/n_batches
   mean_acc  = mean_acc /n_batches
-  print('Condition %6s: mean accuracy = %.3f, mean loss = %.3f' % (condition, mean_acc, mean_loss))
+  print('cond %6s: mean accuracy = %.3f, mean loss = %.3f' % (cond, mean_acc, mean_loss))
   return mean_acc
 
 
