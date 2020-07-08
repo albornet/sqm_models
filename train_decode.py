@@ -8,7 +8,7 @@ from dataset import BatchMaker
 from models import *
 
 
-def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False):
+def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, decode_mode, from_scratch=False):
 
   # Learning devices
   sched = CustomSchedule(init_lr, n_epochs, n_batches)
@@ -38,7 +38,10 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
     os.mkdir('./%s' % (wrapp.model_name,))
 
   # Training loop for the decoder part
-  batch_maker  = BatchMaker('decode', n_objs, batch_size, wrapp.n_frames, im_dims)
+  if decode_mode == 'normal':
+    batch_maker = BatchMaker('decode', n_objs, batch_size, wrapp.n_frames, im_dims)
+  elif decode_mode == 'sqm':
+    batch_maker = BatchMaker('sqm', n_objs, batch_size, wrapp.n_frames, im_dims, 'V')
   for _ in range(n_epochs):
     e = ckpt_decoder.optim.iterations//n_batches
 
@@ -74,9 +77,10 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
 if __name__ == '__main__':
 
-  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error'
+  crit_type   = 'entropy'         # can be 'entropy', 'entropy_thresh', 'prediction_error'
+  decode_mode = 'sqm'             # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
   n_objs      = 2                 # number of moving object in each sample
-  noise_lvl   = 0.3               # amount of noise added to the input (from 0.0 to 1.0)
+  noise_lvl   = 0.1               # amount of noise added to the input (from 0.0 to 1.0)
   im_dims     = (64, 64, 3)       # image dimensions
   n_frames    = 13                # frames in the input sequences
   n_epochs    = 100               # epochs ran IN ADDITION TO latest checkpoint epoch
@@ -87,4 +91,4 @@ if __name__ == '__main__':
   recons      = None
   decoder     = simple_decoder()
   wrapp       = Wrapper(model, recons, decoder, noise_lvl, crit_type, n_frames, name)
-  train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, from_scratch=False)
+  train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_lr, decode_mode, from_scratch=False)

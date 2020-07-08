@@ -20,6 +20,7 @@ im_dims          = (64, 64, 3)       # image dimensions
 batch_size       = 16                # sample sequences sent in parallel
 n_batches        = 64                # batches per epoch
 crit_type        = 'entropy_thresh'  # can be 'entropy', 'entropy_thresh', 'pred_error'
+decode_mode      = 'sqm'             # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
 n_frames_recons  = [8, 13, 20]       # frames in the input sequences for reconstruction
 n_frames_decode  = 13                # frames in the input sequences for decoding
 n_frames_sqm     = 13                # frames in the input sequences for the sqm paradigm

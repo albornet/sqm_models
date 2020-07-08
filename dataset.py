@@ -118,8 +118,6 @@ class Neil():
 
 	# Draw the object (square patch)
 	def draw(self, wn, batch_s):
-		# print(self.side_[0, 0])
-		# print(self.side[ 0, 0])
 		for b in range(batch_s):
 			if self.popped[:, b]:
 				patch  = self.patches[b][self.side_[0, b]]/255
