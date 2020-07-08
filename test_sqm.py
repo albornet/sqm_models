@@ -50,7 +50,8 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, n_subjs, condition):
   mean_loss = sum(all_loss)/len(all_loss)
   stdv_acc  = (sum((x - mean_acc )**2 for x in all_accs)/len(all_accs))**(1/2)
   stdv_loss = (sum((x - mean_loss)**2 for x in all_loss)/len(all_loss))**(1/2)
-  print('\nCondition %s: accuracy: mean = %.3f, stdv =%3f; loss: mean = %.3f' % (condition, mean_acc, stdv_acc, mean_loss, stdv_loss))
+  print('\nCondition %s: accuracy: mean = %.3f, stdv = %.3f; loss: mean = %.3f, stdv = %.3f'
+     % (condition, mean_acc, stdv_acc, mean_loss, stdv_loss))
   return mean_acc, stdv_acc, mean_loss, stdv_loss
 
 
