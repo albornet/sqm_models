@@ -45,8 +45,8 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, n_subjs, condition):
       this_loss += loss
       print('\r  Running condition %s, subject %02i/%02i, batch %02i/%02i'
          % (condition, s+1, n_subjs, b+1, n_batches), end='')
-    all_accs.append(this_loss/n_batches)
-    all_loss.append(this_acc /n_batches)
+    all_accs.append(this_acc /n_batches)
+    all_loss.append(this_loss/n_batches)
   mean_acc  = sum(all_accs)/len(all_accs)
   mean_loss = sum(all_loss)/len(all_loss)
   stdv_acc  = (sum((x - mean_acc )**2 for x in all_accs)/len(all_accs))**(1/2)
