@@ -43,7 +43,8 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, n_subjs, condition):
       acc, loss  = wrapp.test_step(tf.stack(btch, axis=1)/255, b, labs, -1)
       this_acc  += acc
       this_loss += loss
-      print('\r  Running condition %s, batch %2i/%2i' % (condition, b+1, n_batches), end='')
+      print('\r  Running condition %s, subject %02i/%02i, batch %02i/%02i'
+         % (condition, s+1, n_subjs, b+1, n_batches), end='')
     all_accs.append(this_loss/n_batches)
     all_loss.append(this_acc /n_batches)
   mean_acc  = sum(all_accs)/len(all_accs)

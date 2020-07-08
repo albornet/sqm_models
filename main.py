@@ -3,10 +3,10 @@ import tensorflow as tf
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'   # avoid printing GPU info messages
 os.environ['KMP_DUPLICATE_LIB_OK'] = '1'   # MacOS pb
-if os.getcwd() == '/content':
-  from google.colab import drive
-  drive.mount('/content/drive')
-  # %cd /content/drive/My\ Drive/sqm_models  # COMMENT THIS LINE IF NOT ON COLAB
+# if os.getcwd() == '/content':              # COMMENT THE IF LOOP IS NOT ON COLAB
+#   from google.colab import drive
+#   drive.mount('/content/drive')
+#   %cd /content/drive/My\ Drive/sqm_models
 from dataset      import BatchMaker
 from models       import *
 from find_best_lr import find_best_lr
@@ -63,16 +63,16 @@ if do_run['sqm']:
   for cond in final_accuracies.keys():
     if cond == 'V':
       mean, stdv, _, _ = test_sqm(wrapp, n_objs['sqm'], im_dims, batch_size['sqm'], n_batches['sqm'], n_subjs_sqm, cond)
-      final_accuracies[cond].append(mean)
-      final_stand_devs[cond].append(stdv) 
+      final_accuracies[cond].append(mean  )
+      final_stand_devs[cond].append(stdv/2)  # above and below in plt.errorbar, so we divide by 2 
       plt.hlines(final_accuracies[cond], 0, n_frames['sqm']-4, colors='k', linestyles='dashed', label=cond)
     else:
       sec_frames = range(1, n_frames['sqm']-3)
       for sec_frame in sec_frames:
         this_cond = 'V-%sV%s' % (cond, sec_frame)
-        mean, stdv, _, _ = test_sqm(wrapp, n_objs['sqm'], im_dims, batch_size['sqm'], n_batches['sqm'], this_cond)
+        mean, stdv, _, _ = test_sqm(wrapp, n_objs['sqm'], im_dims, batch_size['sqm'], n_batches['sqm'], n_subjs_sqm, this_cond)
         final_accuracies[cond].append(mean)
         final_stand_devs[cond].append(stdv)
-      plt.errorbar(sec_frames, final_accuracies[cond], yerr=final_stand_devs[cond], label=cond)
+      plt.errorbar(sec_frames, final_accuracies[cond], final_stand_devs[cond], label=cond)
   plt.legend()
   plt.show()
