@@ -1,13 +1,12 @@
 # Training procedure
 import tensorflow as tf
-import numpy as np
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # avoid printing GPU info messages
 os.environ['KMP_DUPLICATE_LIB_OK'] = '1' # MacOS pb
 from dataset import BatchMaker
 from models import *
 
-def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
+def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, n_subjs, condition):
 
   # Checkpoint (save and load model weights and accuracies)
   model_dir    = '%s/%s/ckpt_model' % (os.getcwd(), wrapp.model_name)
@@ -33,19 +32,26 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, condition):
     os.mkdir('./%s' % (wrapp.model_name,))
 
   # Test loop
-  batch_maker = BatchMaker('sqm', n_objs, batch_size, wrapp.n_frames, im_dims, condition)
-  mean_loss   = 0.0
-  mean_acc    = 0.0
-  for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
-    batch, labels = batch_maker.generate_batch()
-    acc, loss     = wrapp.test_step(tf.stack(batch, axis=1)/255, b, labels, -1)
-    mean_loss    += loss
-    mean_acc     += acc
-    print('\r  Running condition %s, batch %2i/%2i' % (condition, b+1, n_batches), end='')
-  mean_loss = mean_loss/n_batches
-  mean_acc  = mean_acc /n_batches
-  print('\nCondition %s: mean accuracy = %.3f, mean loss = %.3f' % (condition, mean_acc, mean_loss))
-  return mean_acc
+  all_accs = []
+  all_loss = []
+  for s in range(n_subjs):
+    batch_maker = BatchMaker('sqm', n_objs, batch_size, wrapp.n_frames, im_dims, condition)
+    this_acc    = 0.0
+    this_loss   = 0.0
+    for b in range(n_batches):  # batch shape: (batch_s, n_frames) + im_dims
+      btch, labs = batch_maker.generate_batch()
+      acc, loss  = wrapp.test_step(tf.stack(btch, axis=1)/255, b, labs, -1)
+      this_acc  += acc
+      this_loss += loss
+      print('\r  Running condition %s, batch %2i/%2i' % (condition, b+1, n_batches), end='')
+    all_accs.append(this_loss/n_batches)
+    all_loss.append(this_acc /n_batches)
+  mean_acc  = sum(all_accs)/len(all_accs)
+  mean_loss = sum(all_loss)/len(all_loss)
+  stdv_acc  = (sum((x - mean_acc )**2 for x in all_accs)/len(all_accs))**(1/2)
+  stdv_loss = (sum((x - mean_loss)**2 for x in all_loss)/len(all_loss))**(1/2)
+  print('\nCondition %s: accuracy: mean = %.3f, stdv =%3f; loss: mean = %.3f' % (condition, mean_acc, stdv_acc, mean_loss, stdv_loss))
+  return mean_acc, stdv_acc, mean_loss, stdv_loss
 
 
 if __name__ == '__main__':
