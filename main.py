@@ -3,7 +3,7 @@ import tensorflow as tf
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'   # avoid printing GPU info messages
 os.environ['KMP_DUPLICATE_LIB_OK'] = '1'   # MacOS pb
-# if os.getcwd() == '/content':              # COMMENT THE IF LOOP IS NOT ON COLAB
+# if os.getcwd() == '/content':            # COMMENT THE IF LOOP IS NOT ON COLAB
 #   from google.colab import drive
 #   drive.mount('/content/drive')
 #   %cd /content/drive/My\ Drive/sqm_models
@@ -20,7 +20,7 @@ decode_crit = 'entropy'                                        # can be 'entropy
 decode_mode = 'sqm'                                            # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
 n_subjs_sqm = 10                                               # number of subjects tested with the sqm paradigms (for stdevs)
 batch_size  = {'recons': 16,    'decode': 16,    'sqm': 16  }  # sample sequences sent in parallel
-n_batches   = {'recons': 64,    'decode': 64,    'sqm': 5   }  # batches per epoch
+n_batches   = {'recons': 64,    'decode': 64,    'sqm': 5   }  # batches per epoch (sqm: 80 = 5*16 trials per subject?)
 n_frames    = {'recons': [13],  'decode': 13,    'sqm': 13  }  # frames in the input sequences for reconstruction
 n_epochs    = {'recons': 100,   'decode': 100,   'sqm': None}  # epochs ran after latest checkpoint epoch (for every frame number)
 n_objs      = {'recons': 10,    'decode': 2,     'sqm': 2   }  # number of moving objects in recons batches
