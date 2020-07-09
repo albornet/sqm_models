@@ -3,10 +3,10 @@ import tensorflow as tf
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'   # avoid printing GPU info messages
 os.environ['KMP_DUPLICATE_LIB_OK'] = '1'   # MacOS pb
-# if os.getcwd() == '/content':            # COMMENT THE IF LOOP IS NOT ON COLAB
-#   from google.colab import drive
-#   drive.mount('/content/drive')
-#   %cd /content/drive/My\ Drive/sqm_models
+if os.getcwd() == '/content':              # COMMENT THE IF LOOP IS NOT ON COLAB
+  from google.colab import drive
+  drive.mount('/content/drive')
+  %cd /content/drive/My\ Drive/sqm_models
 from dataset      import BatchMaker
 from models       import *
 from find_best_lr import find_best_lr
@@ -27,10 +27,10 @@ n_objs      = {'recons': 10,      'decode': 2,     'sqm': 2   }  # number of mov
 noise_lvl   = {'recons': 0.9,     'decode': 0.1,   'sqm': 0.1 }  # amount of noise added to reconstruction set samples
 init_lr     = {'recons': 5e-4,    'decode': 1e-5,  'sqm': None}  # first parameter to tune if does not work
 do_best_lr  = {'recons': False,   'decode': False, 'sqm': None}  # run (or not) find_best_lr to initiate learning rate
-do_run      = {'recons': False,   'decode': False, 'sqm': True}  # run (or not) the training / testing
+do_run      = {'recons': True,    'decode': True,  'sqm': True}  # run (or not) the training / testing
 
 # Models and wrapper
-model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
+model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet2'
 recons      = None
 decoder     = simple_decoder()
 wrapp       = Wrapper(model, recons, decoder, 0.0, decode_crit, 0, name)
