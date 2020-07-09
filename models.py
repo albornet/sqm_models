@@ -227,7 +227,6 @@ class Wrapper(tf.keras.Model):
     if isinstance(self.model, PredNet):
         return self.model(x)[0]
     else:
-      # x = tf.cast(x, tf.float32)
       states = self.model(x)
       recs   = []
       for t in range(self.n_frames):
@@ -246,28 +245,12 @@ class Wrapper(tf.keras.Model):
     frame_losses = [w*tf.reduce_sum((x[:, n] - x[:, n+1])**2) for n, w in enumerate(weights)]
     return tf.reduce_sum(losses)/tf.reduce_sum(frame_losses)
 
-  """
-  def compute_dec_loss(self, labels, lat_var, criterion):
-    loss_func = tf.keras.losses.BinaryCrossentropy()  # for the moment
-    targets   = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
-    weights   = [0.0 if n == 0 else 1.0 for n in range(self.n_frames)]
-    losses    = tf.zeros(labels.shape)
-    accurs    = 0.0
-    for t in range(self.n_frames):
-      decoding = tf.squeeze(self.decoder(lat_var[:, t]))
-      losses  += weights[t]*loss_func(targets, decoding)
-      self.accuracy.update_state(labels, tf.argmax(decoding, 1))
-      accurs  += self.accuracy.result()
-    self.accuracy.reset_states()
-    return accurs/self.n_frames, tf.reduce_sum(losses)/self.n_frames
-  """
-  
   def compute_dec_loss(self, labels, lat_var, criterion):
 
     # Set up targets and loss type
-    batch_size  = lat_var.shape[0]
-    loss_func   = tf.keras.losses.BinaryCrossentropy()  # for the moment
-    targets     = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
+    batch_size = lat_var.shape[0]
+    loss_func  = tf.keras.losses.BinaryCrossentropy()  # for the moment
+    targets    = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
 
     # For each batch sample, find the frame that meets the criterion
     if self.crit_type != 'last_frame':
@@ -288,9 +271,9 @@ class Wrapper(tf.keras.Model):
     decoding = tf.squeeze(self.decoder(lat_var_to_decode))
     loss     = loss_func(targets, decoding)
     self.accuracy.update_state(labels, tf.argmax(decoding, 1))
-    accur    = self.accuracy.result()
+    accuracy = self.accuracy.result()
     self.accuracy.reset_states()
-    return accur, loss
+    return accuracy, loss
   
   def compute_criterion(self, lat_var):
     batch_size = lat_var.shape[0]
@@ -313,7 +296,7 @@ class Wrapper(tf.keras.Model):
     # Run and record decoding
     if labels is not None:
       with tf.GradientTape() as tape:
-        lat_var   = self.model(x)[layer_decod]
+        lat_var   = self.model(self.add_noise(x, True))[layer_decod]
         criterion = self.compute_criterion(lat_var)
         acc, loss = self.compute_dec_loss(labels, lat_var, criterion)
       to_train = self.decoder.trainable_variables
@@ -361,7 +344,7 @@ class Wrapper(tf.keras.Model):
     t  = tf.zeros((10 if i == 3 else x.shape[i] for i in range(len(x.shape))))  # black rectangle
     xr = tf.clip_by_value(tf.concat((x, t, r), axis=3), 0.0, 1.0)
     for s in sample_indexes:
-      f  = plt.figure(figsize=(int(2*(x.shape[2] + 3)/32), int(self.n_frames*(x.shape[3] + 3)/32)))
+      f = plt.figure(figsize=(int(2*(x.shape[2] + 3)/32), int(self.n_frames*(x.shape[3] + 3)/32)))
       for t in range(self.n_frames):
         ax = f.add_subplot(self.n_frames+1, 1, 0*(self.n_frames+1) + t + 1)
         ax.imshow(tf.squeeze(xr[s, t]), cmap='Greys')  # squeeze and cmap only apply to n_channels = 1
@@ -390,9 +373,9 @@ class Wrapper(tf.keras.Model):
   def plot_distrubution_activities_lat_vars(self, x, layer=-1, show=False):
     fig, axes = plt.subplots(self.n_frames, 1, figsize=(24, 24))
     for t in range(1, self.n_frames):
-      flat_lat_vars  = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
+      flat_lat_vars = tf.keras.backend.flatten(self.model(x)[layer][0, t]).numpy()
       axes[t].hist(flat_lat_vars, bins=100, range=(0.03, 6.0), density=True) 
-      axes[t].set(xlabel = 'Values of neuron activities at frame ' + str(t+1), ylabel = 'Occurence')
+      axes[t].set(xlabel='Values of neuron activities at frame '+str(t+1), ylabel='Occurence')
       axes[t].grid()
     fig.savefig('./%s/distribution_of_neuron_activities.png' % (self.model_name))
     if show:

@@ -33,7 +33,7 @@ do_run      = {'recons': False,   'decode': False, 'sqm': True}  # run (or not) 
 model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'
 recons      = None
 decoder     = simple_decoder()
-wrapp       = wrapp = Wrapper(model, recons, decoder, 0.0, decode_crit, 0, name)
+wrapp       = Wrapper(model, recons, decoder, 0.0, decode_crit, 0, name)
 
 # Train model on next frame prediction
 if do_run['recons']:
@@ -71,8 +71,9 @@ if do_run['sqm']:
       for sec_frame in sec_frames:
         this_cond = 'V-%sV%s' % (cond, sec_frame)
         mean, stdv, _, _ = test_sqm(wrapp, n_objs['sqm'], im_dims, batch_size['sqm'], n_batches['sqm'], n_subjs_sqm, this_cond)
-        final_accuracies[cond].append(mean)
-        final_stand_devs[cond].append(stdv)
+        final_accuracies[cond].append(mean  )
+        final_stand_devs[cond].append(stdv/2)  # above and below in plt.errorbar, so we divide by 2 
       plt.errorbar(sec_frames, final_accuracies[cond], final_stand_devs[cond], label=cond)
   plt.legend()
+  plt.savefig('./%s/sqm_results.png' % (name))
   plt.show()
