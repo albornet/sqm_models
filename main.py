@@ -39,7 +39,7 @@ wrapp       = Wrapper(model, recons, decoder, 0.0, decode_crit, 0, name)
 if do_run['recons']:
   wrapp.set_noise(noise_lvl['recons'])
   for n in n_frames['recons']:
-    wrapp.n_frames  = n
+    wrapp.n_frames = n
     if do_best_lr['recons']:
       init_lr['recons'] = find_best_lr(wrapp, n_objs['recons'], im_dims, batch_size['recons'], mode='recons', custom=False, from_scratch=True)
     train_recons(wrapp, n_objs['recons'], im_dims, n_epochs['recons'], batch_size['recons'], n_batches['recons'], init_lr['recons'], from_scratch=False)
