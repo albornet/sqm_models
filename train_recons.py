@@ -64,7 +64,7 @@ def train_recons(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
 if __name__ == '__main__':
 
-  crit_type    = 'entropy_thresh'  # can be 'entropy', 'entropy_thresh', 'pred_error'
+  crit_type    = 'entropy_thresh'  # can be 'entropy', 'entropy_thresh', 'pred_error', 'last_frame'
   n_objs       = 6                 # number of moving object in each sample
   noise_lvl    = 0.9               # amount of noise added to the input
   im_dims      = (64, 64, 3)       # image dimensions

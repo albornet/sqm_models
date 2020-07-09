@@ -77,7 +77,7 @@ def train_decode(wrapp, n_objs, im_dims, n_epochs, batch_size, n_batches, init_l
 
 if __name__ == '__main__':
 
-  crit_type   = 'entropy'         # can be 'entropy', 'entropy_thresh', 'prediction_error'
+  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_thresh', 'prediction_error', 'last_frame'
   decode_mode = 'sqm'             # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
   n_objs      = 2                 # number of moving object in each sample
   noise_lvl   = 0.1               # amount of noise added to the input (from 0.0 to 1.0)

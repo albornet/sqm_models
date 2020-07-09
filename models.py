@@ -264,16 +264,21 @@ class Wrapper(tf.keras.Model):
   
   def compute_dec_loss(self, labels, lat_var, criterion):
 
-    # Find first frames for which dynamics are stabilized
+    # Set up targets and loss type
     batch_size  = lat_var.shape[0]
     loss_func   = tf.keras.losses.BinaryCrossentropy()  # for the moment
     targets     = tf.one_hot(labels, 2)                 # crossentropy needs one_hot
-    criterion   = criterion[:, 1:]
-    crit_grad   = np.abs(np.gradient(criterion, axis=1))
-    smooth_grad = scipy.signal.convolve2d(crit_grad, np.ones((1, 3)), mode='same')
-    threshold   = [1.0]*batch_size  # 0.1*np.max(smooth_grad, axis=1)
-    crit_frames = 1 + np.array([np.argmax(g < t) for g, t in zip(smooth_grad, threshold)])
-    crit_frames[crit_frames == 1] = self.n_frames-1
+
+    # For each batch sample, find the frame that meets the criterion
+    if self.crit_type != 'last_frame':
+      criterion   = criterion[:, 1:]
+      crit_grad   = np.abs(np.gradient(criterion, axis=1))
+      smooth_grad = scipy.signal.convolve2d(crit_grad, np.ones((1, 3)), mode='same')
+      threshold   = [1.0]*batch_size  # 0.1*np.max(smooth_grad, axis=1)
+      crit_frames = 1 + np.array([np.argmax(g < t) for g, t in zip(smooth_grad, threshold)])
+      crit_frames[crit_frames == 1] = self.n_frames-1
+    else:
+      crit_frames = (self.n_frames-1)*np.ones((batch_size,), dtype=int)
       
     # For each batch sample, select the frame at which all information is sent 
     indices_to_decode = tf.stack([tf.range(batch_size), crit_frames], axis=-1)
@@ -300,7 +305,7 @@ class Wrapper(tf.keras.Model):
           probs, _        = np.histogram(flat_var, bins=100, range=hist_range, density=True)
           criterion[b, t] = -(probs*np.log(probs + epsilon)/base_change).sum()
     elif self.crit_type == 'pred_error':
-      criterion = lat_var.numpy().sum(axis=(-1, -2, -3))  # sum over both space and feature dims
+      criterion = lat_var.numpy().sum(axis=(-1, -2, -3))  # sum over both space and feature dims     
     return criterion
 
   def train_step(self, x, b, opt, labels=None, layer_decod=-1):
@@ -311,7 +316,7 @@ class Wrapper(tf.keras.Model):
         lat_var   = self.model(x)[layer_decod]
         criterion = self.compute_criterion(lat_var)
         acc, loss = self.compute_dec_loss(labels, lat_var, criterion)
-      to_train  = self.decoder.trainable_variables
+      to_train = self.decoder.trainable_variables
       if b == 0:
         self.plot_recons(x, sample_indexes=[0])
         self.plot_results(range(1, self.n_frames), criterion[0, 1:],

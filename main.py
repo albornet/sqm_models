@@ -15,19 +15,19 @@ from train_decode import train_decode
 from test_sqm     import test_sqm
 
 # Main parameters
-im_dims     = (64, 64, 3)                                      # image dimensions
-decode_crit = 'entropy'                                        # can be 'entropy', 'entropy_thresh', 'pred_error'
-decode_mode = 'sqm'                                            # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
-n_subjs_sqm = 10                                               # number of subjects tested with the sqm paradigms (for stdevs)
-batch_size  = {'recons': 16,    'decode': 16,    'sqm': 16  }  # sample sequences sent in parallel
-n_batches   = {'recons': 64,    'decode': 64,    'sqm': 5   }  # batches per epoch (sqm: 80 = 5*16 trials per subject?)
-n_frames    = {'recons': [13],  'decode': 13,    'sqm': 13  }  # frames in the input sequences for reconstruction
-n_epochs    = {'recons': 100,   'decode': 100,   'sqm': None}  # epochs ran after latest checkpoint epoch (for every frame number)
-n_objs      = {'recons': 10,    'decode': 2,     'sqm': 2   }  # number of moving objects in recons batches
-noise_lvl   = {'recons': 0.9,   'decode': 0.1,   'sqm': 0.1 }  # amount of noise added to reconstruction set samples
-init_lr     = {'recons': 5e-4,  'decode': 1e-5,  'sqm': None}  # first parameter to tune if does not work
-do_best_lr  = {'recons': False, 'decode': False, 'sqm': None}  # run (or not) find_best_lr to initiate learning rate
-do_run      = {'recons': False, 'decode': False, 'sqm': True}  # run (or not) the training / testing
+im_dims     = (64, 64, 3)                                        # image dimensions
+decode_crit = 'last_frame'                                       # can be 'entropy', 'entropy_thresh', 'pred_error', 'last_frame'
+decode_mode = 'sqm'                                              # can be 'normal' or 'sqm' (use 'V' sqm samples to train decoder)
+n_subjs_sqm = 10                                                 # number of subjects tested with the sqm paradigms (for stdevs)
+batch_size  = {'recons': 16,      'decode': 16,    'sqm': 16  }  # sample sequences sent in parallel
+n_batches   = {'recons': 64,      'decode': 64,    'sqm': 5   }  # batches per epoch (sqm: 80 = 5*16 trials per subject?)
+n_frames    = {'recons': [8, 13], 'decode': 13,    'sqm': 13  }  # frames in the input sequences for reconstruction
+n_epochs    = {'recons': 50,      'decode': 100,   'sqm': None}  # epochs ran after latest checkpoint epoch (for every frame number)
+n_objs      = {'recons': 10,      'decode': 2,     'sqm': 2   }  # number of moving objects in recons batches
+noise_lvl   = {'recons': 0.9,     'decode': 0.1,   'sqm': 0.1 }  # amount of noise added to reconstruction set samples
+init_lr     = {'recons': 5e-4,    'decode': 1e-5,  'sqm': None}  # first parameter to tune if does not work
+do_best_lr  = {'recons': False,   'decode': False, 'sqm': None}  # run (or not) find_best_lr to initiate learning rate
+do_run      = {'recons': False,   'decode': False, 'sqm': True}  # run (or not) the training / testing
 
 # Models and wrapper
 model, name = PredNet((im_dims[-1], 32, 64, 128), (im_dims[-1], 32, 64, 128)), 'prednet'

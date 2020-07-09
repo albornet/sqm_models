@@ -59,7 +59,7 @@ def test_sqm(wrapp, n_objs, im_dims, batch_size, n_batches, n_subjs, condition):
 if __name__ == '__main__':
 
   condition   = 'V'               # can be 'V', 'V-AV' or 'V-PV'
-  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error'
+  crit_type   = 'entropy_thresh'  # can be 'entropy', 'entropy_threshold', 'prediction_error', 'last_frame'
   n_objs      = 2                 # number of moving object in each sample
   noise_lvl   = 0.1               # amount of noise added to the input (from 0.0 to 1.0)
   im_dims     = (64, 64, 3)       # image dimensions
